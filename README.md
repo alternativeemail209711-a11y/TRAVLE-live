@@ -6,14 +6,15 @@ Gaming LIVE Mode**. You never touch code — just follow the steps below.
 
 ## What this actually is
 
-Four plain files (no installs, no server, nothing to "run"):
+Five plain files (no installs, no server, nothing to "run"):
 
 - `index.html` — the game screen
 - `style.css` — the look
-- `app.js` — the game logic (243 countries' worth of land borders, all the rules, scoring, leaderboard)
+- `app.js` — the game logic (166 countries' worth of land borders, all the rules, scoring, leaderboard, the globe)
 - `data.js` — the country border data the game uses
+- `coords.js` — rough map coordinates for each country, used to place it on the floating globe
 
-These four files together ARE the whole game. GitHub just stores them.
+These five files together ARE the whole game. GitHub just stores them.
 Render just serves them as a website. Nothing else is needed.
 
 ---
@@ -24,7 +25,7 @@ Render just serves them as a website. Nothing else is needed.
 2. Click the **+** icon (top right) → **New repository**.
 3. Name it something like `travle-live` → keep it **Public** → click **Create repository**.
 4. On the new repo's page, click **"uploading an existing file"** (a blue link in the middle of the page).
-5. Drag all 4 files (`index.html`, `style.css`, `app.js`, `data.js`) into the upload box.
+5. Drag all 5 files (`index.html`, `style.css`, `app.js`, `data.js`, `coords.js`) into the upload box.
 6. Scroll down, click the green **Commit changes** button.
 
 That's it — your code is on GitHub.

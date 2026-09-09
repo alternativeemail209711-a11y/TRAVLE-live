@@ -188,7 +188,10 @@
 
   const $ = (id) => document.getElementById(id);
 
+  const appEl = $("app");
   const modeBadge = $("modeBadge");
+  const modeBanner = $("modeBanner");
+  const globeLayer = $("globeLayer");
   const guessesLeftEl = $("guessesLeft");
   const difficultyLabelEl = $("difficultyLabel");
   const routeTrack = $("routeTrack");
@@ -263,10 +266,12 @@
       requiredIntermediate,
       maxGuesses: requiredIntermediate + currentAllowance(),
       active: true,
+      wrongGuesses: [],
     };
     feedList.innerHTML = "";
     addFeed(`New trail: <span class="viewer">${picked.start}</span> → <span class="viewer">${picked.end}</span>`);
     hostMsg.textContent = "";
+    globeDrift = 0;
     renderRound();
   }
 
@@ -295,7 +300,88 @@
         routeTrack.appendChild(c);
       }
     });
+
+    renderGlobe();
   }
+
+  /* ---- floating globe ---- */
+  let globeDrift = 0;
+
+  function projectPoint(lat, lon, centerLat, centerLon, R, cx, cy) {
+    const toRad = Math.PI / 180;
+    const phi = lat * toRad, phi1 = centerLat * toRad;
+    const dLambda = (lon - centerLon) * toRad;
+    const cosC = Math.sin(phi1) * Math.sin(phi) + Math.cos(phi1) * Math.cos(phi) * Math.cos(dLambda);
+    const x = R * Math.cos(phi) * Math.sin(dLambda);
+    const y = R * (Math.cos(phi1) * Math.sin(phi) - Math.sin(phi1) * Math.cos(phi) * Math.cos(dLambda));
+    return { x: cx + x, y: cy - y, visible: cosC > -0.08 };
+  }
+
+  function renderGlobe() {
+    if (!round || !globeLayer) return;
+    const wrongRecent = round.wrongGuesses.slice(-6);
+    const points = [
+      ...round.startChain.map((c, i) => ({ name: c, cls: (c === round.start) ? "endpoint" : "confirmed" })),
+      ...round.endChain.map((c, i) => ({ name: c, cls: (c === round.end) ? "endpoint" : "confirmed" })),
+      ...wrongRecent.map((c) => ({ name: c, cls: "wrong" })),
+    ].filter((p) => COUNTRY_COORDS[p.name]);
+
+    if (!points.length) { globeLayer.innerHTML = ""; return; }
+
+    let sx = 0, sy = 0, latSum = 0;
+    points.forEach((p) => {
+      const [lat, lon] = COUNTRY_COORDS[p.name];
+      const r = lon * Math.PI / 180;
+      sx += Math.cos(r); sy += Math.sin(r); latSum += lat;
+    });
+    const centerLon = Math.atan2(sy, sx) * 180 / Math.PI + globeDrift;
+    const centerLat = Math.max(-55, Math.min(55, latSum / points.length));
+
+    const R = 96, cx = 110, cy = 110;
+    globeLayer.innerHTML = "";
+
+    // trail links between consecutive confirmed chain nodes
+    const chainOrder = [...round.startChain, ...[...round.endChain].reverse()];
+    for (let i = 0; i < chainOrder.length - 1; i++) {
+      const [lat1, lon1] = COUNTRY_COORDS[chainOrder[i]] || [];
+      const [lat2, lon2] = COUNTRY_COORDS[chainOrder[i + 1]] || [];
+      if (lat1 === undefined || lat2 === undefined) continue;
+      const p1 = projectPoint(lat1, lon1, centerLat, centerLon, R, cx, cy);
+      const p2 = projectPoint(lat2, lon2, centerLat, centerLon, R, cx, cy);
+      if (!p1.visible || !p2.visible) continue;
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("class", "globe-link");
+      line.setAttribute("x1", p1.x); line.setAttribute("y1", p1.y);
+      line.setAttribute("x2", p2.x); line.setAttribute("y2", p2.y);
+      globeLayer.appendChild(line);
+    }
+
+    points.forEach((p) => {
+      const [lat, lon] = COUNTRY_COORDS[p.name];
+      const proj = projectPoint(lat, lon, centerLat, centerLon, R, cx, cy);
+      if (!proj.visible) return;
+      const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      dot.setAttribute("class", "globe-marker " + p.cls);
+      dot.setAttribute("cx", proj.x); dot.setAttribute("cy", proj.y);
+      dot.setAttribute("r", p.cls === "endpoint" ? 4.2 : p.cls === "wrong" ? 2.6 : 3.4);
+      globeLayer.appendChild(dot);
+
+      if (p.cls !== "wrong") {
+        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        label.setAttribute("class", "globe-label");
+        label.setAttribute("x", proj.x + 5);
+        label.setAttribute("y", proj.y + 3);
+        label.textContent = p.name;
+        globeLayer.appendChild(label);
+      }
+    });
+  }
+
+  setInterval(() => {
+    if (!round || !round.active) return;
+    globeDrift += 0.4;
+    renderGlobe();
+  }, 200);
 
   function addFeed(html) {
     const li = document.createElement("li");
@@ -305,6 +391,11 @@
   }
 
   function arrowFor(side) { return side === "start" ? "→" : "←"; }
+
+  function viewerLabel(viewerName) {
+    if (viewerName) return viewerName;
+    return mode === "offline" ? "You" : "Host";
+  }
 
   function handleGuess() {
     if (!round || !round.active) return;
@@ -339,7 +430,7 @@
       round.guessesUsed++;
       const perfect = round.guessesUsed === round.requiredIntermediate;
       const pts = 10 + 25 + (perfect ? 20 : 0);
-      addFeed(`<span class="viewer">${viewerName || "Host"}</span> guessed <b>${country}</b> — <span class="tag-win">bridged the trail! 🎉</span>`);
+      addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="tag-win">bridged the trail! 🎉</span>`);
       if (mode === "live") addPoints(viewerName, pts);
       renderRound();
       finishRound(true, perfect);
@@ -350,7 +441,7 @@
       round.startChain.push(country);
       round.used.add(country);
       round.guessesUsed++;
-      addFeed(`<span class="viewer">${viewerName || "Host"}</span> guessed <b>${country}</b> — <span class="tag-good">connects from ${round.start} ${arrowFor("start")}</span>`);
+      addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="tag-good">connects from ${round.start} ${arrowFor("start")}</span>`);
       if (mode === "live") addPoints(viewerName, 10);
       renderRound();
       checkOutOfGuesses();
@@ -361,7 +452,7 @@
       round.endChain.push(country);
       round.used.add(country);
       round.guessesUsed++;
-      addFeed(`<span class="viewer">${viewerName || "Host"}</span> guessed <b>${country}</b> — <span class="tag-good">connects from ${round.end} ${arrowFor("end")}</span>`);
+      addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="tag-good">connects from ${round.end} ${arrowFor("end")}</span>`);
       if (mode === "live") addPoints(viewerName, 10);
       renderRound();
       checkOutOfGuesses();
@@ -370,6 +461,10 @@
 
     // wrong guess — give a proximity hint
     round.guessesUsed++;
+    if (COUNTRY_COORDS[country]) {
+      round.wrongGuesses.push(country);
+      if (round.wrongGuesses.length > 8) round.wrongGuesses.shift();
+    }
     const dStart = bfsDistances(country).get(startFrontier) ?? null;
     const dEnd = bfsDistances(country).get(endFrontier) ?? null;
     let hint = "not connected to the trail yet";
@@ -378,7 +473,7 @@
       const side = (dStart ?? Infinity) <= (dEnd ?? Infinity) ? round.start : round.end;
       hint = `${best} border${best === 1 ? "" : "s"} away from ${side}`;
     }
-    addFeed(`<span class="viewer">${viewerName || "Host"}</span> guessed <b>${country}</b> — <span class="tag-bad">${hint}</span>`);
+    addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="tag-bad">${hint}</span>`);
     renderRound();
     checkOutOfGuesses();
   }
@@ -485,11 +580,25 @@
   closeLeaderboard.addEventListener("click", () => closeDrawer(leaderboardDrawer));
   scrim.addEventListener("click", closeAllDrawers);
 
-  modeSelect.addEventListener("change", () => {
-    mode = modeSelect.value;
+  const MODE_BANNER_TEXT = {
+    live: "",
+    test: "Practice round — scores won't be saved to the leaderboard.",
+    offline: "Solo practice — no leaderboard, just you.",
+  };
+
+  function applyModeUI() {
     modeBadge.textContent = mode.toUpperCase();
     modeBadge.className = "badge" + (mode === "test" ? " mode-test" : mode === "offline" ? " mode-offline" : "");
     viewerRow.style.display = mode === "offline" ? "none" : "flex";
+    appEl.className = "mode-" + mode;
+    const text = MODE_BANNER_TEXT[mode];
+    modeBanner.textContent = text;
+    modeBanner.classList.toggle("show", Boolean(text));
+  }
+
+  modeSelect.addEventListener("change", () => {
+    mode = modeSelect.value;
+    applyModeUI();
   });
 
   difficultySelect.addEventListener("change", () => { difficulty = difficultySelect.value; });
@@ -521,6 +630,6 @@
    * 7. INIT
    * ------------------------------------------------------------------ */
 
-  viewerRow.style.display = "flex";
+  applyModeUI();
   startNewRound();
 })();

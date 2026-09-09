@@ -120,6 +120,70 @@ button, input, select {
   overflow-y: auto;
 }
 
+/* ---------------- Floating globe ---------------- */
+.globe-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 10px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.globe-wrap {
+  position: relative;
+  width: 168px;
+  height: 168px;
+  animation: globe-float 4.5s ease-in-out infinite;
+}
+
+@keyframes globe-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.globe-shell, .globe-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.globe-shell { filter: drop-shadow(0 10px 16px rgba(0,0,0,0.35)); }
+
+.globe-marker {
+  transition: cx 0.6s ease, cy 0.6s ease, opacity 0.4s ease;
+}
+.globe-marker.endpoint { fill: var(--gold); stroke: #FFF4DE; stroke-width: 0.6; }
+.globe-marker.confirmed { fill: var(--trail); stroke: #DFF3E6; stroke-width: 0.5; }
+.globe-marker.wrong { fill: var(--coral); opacity: 0.65; }
+
+.globe-label {
+  font-size: 7.5px;
+  fill: var(--paper);
+  font-family: var(--font-ui);
+  paint-order: stroke;
+  stroke: var(--ink);
+  stroke-width: 2px;
+  transition: x 0.6s ease, y 0.6s ease, opacity 0.4s ease;
+}
+
+.globe-link {
+  stroke: var(--gold);
+  stroke-width: 1;
+  opacity: 0.45;
+  stroke-dasharray: 2 2;
+  transition: opacity 0.4s ease;
+}
+
+.globe-caption {
+  margin: 8px 0 0;
+  font-size: 10.5px;
+  color: var(--slate);
+  text-align: center;
+}
+
 .route-card {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -315,6 +379,28 @@ button, input, select {
   color: var(--slate);
 }
 
+/* ---------------- Mode-specific dressing ---------------- */
+.mode-banner {
+  display: none;
+  margin: 0 0 2px;
+  font-size: 11.5px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+.mode-banner.show { display: block; }
+
+#app.mode-live .host-dock { border-top-color: var(--trail-dim); }
+
+#app.mode-test .host-dock { border-top-color: var(--gold-dim); }
+#app.mode-test .mode-banner { background: #3A2F14; color: #F0DFA0; border: 1px solid var(--gold-dim); }
+#app.mode-test .primary-btn { background: var(--gold-dim); color: #FBEFD2; }
+
+#app.mode-offline .host-dock { border-top-color: var(--line); }
+#app.mode-offline .mode-banner { background: #241F3A; color: #D9D3F5; border: 1px solid #3A3552; }
+#app.mode-offline .primary-btn { background: #6A5FA8; color: #F3EEFF; }
+#app.mode-offline #trophyBtn { display: none; }
+
 /* ---------------- Drawers ---------------- */
 .scrim {
   position: fixed;
@@ -448,4 +534,15 @@ button, input, select {
 @media (max-width: 360px) {
   .brand-title { font-size: 17px; }
   .node { font-size: 12.5px; padding: 7px 10px; }
+}
+
+/* ==========================================================================
+   Extra per-mode structural cues (dashed borders read as "practice" at a
+   glance, on top of the banner + accent-color rules defined above)
+   ========================================================================== */
+
+#app.mode-test .route-card,
+#app.mode-test .host-dock { border-style: dashed; }
+#app.mode-test .host-dock {
+  background-image: repeating-linear-gradient(135deg, rgba(214,162,74,0.05) 0 10px, transparent 10px 20px);
 }
