@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>TRAVLE — Live Edition</title>
+<meta name="description" content="A host-controlled TRAVLE geography game built for TikTok Live." />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============ TOP BAR ============ -->
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
+        <circle cx="20" cy="20" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <path d="M20 6 L23 18 L20 34 L17 18 Z" fill="currentColor" opacity="0.9"/>
+        <circle cx="20" cy="20" r="2.4" fill="var(--ink)"/>
+      </svg>
+      <div class="brand-text">
+        <span class="brand-title">TRAVLE</span>
+        <span class="brand-sub">border-hop edition</span>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <span id="modeBadge" class="badge">LIVE</span>
+      <button id="trophyBtn" class="icon-btn" title="Leaderboard" aria-label="Leaderboard">🏆</button>
+      <button id="settingsBtn" class="icon-btn" title="Settings" aria-label="Settings">⚙</button>
+    </div>
+  </header>
+
+  <!-- ============ MAIN BOARD ============ -->
+  <main class="board">
+
+    <section class="route-card">
+      <div class="route-meta">
+        <div class="meta-pill">
+          <span class="meta-label">Guesses left</span>
+          <span id="guessesLeft" class="meta-value">–</span>
+        </div>
+        <div class="meta-pill">
+          <span class="meta-label">Difficulty</span>
+          <span id="difficultyLabel" class="meta-value">–</span>
+        </div>
+      </div>
+
+      <div class="route" id="routeTrack"><!-- chain nodes injected by app.js --></div>
+
+      <p class="route-hint">Guess any country that could sit on the trail between the two ends. You can build inward from either side.</p>
+    </section>
+
+    <section class="feed-card" id="feedCard">
+      <button class="feed-toggle" id="feedToggle" aria-expanded="true">
+        <span>Live activity</span>
+        <span class="feed-chevron" id="feedChevron">▾</span>
+      </button>
+      <ul class="feed-list" id="feedList"></ul>
+    </section>
+
+  </main>
+
+  <!-- ============ HOST CONTROL DOCK ============ -->
+  <footer class="host-dock">
+    <div class="host-row" id="viewerRow">
+      <input id="viewerInput" class="host-input" type="text" placeholder="Viewer name (from chat)" autocomplete="off" />
+    </div>
+    <div class="host-row host-row-guess">
+      <input id="guessInput" class="host-input" type="text" placeholder="Type a country guess…" autocomplete="off" />
+      <button id="submitGuess" class="primary-btn">Guess</button>
+    </div>
+    <div class="host-row host-row-actions">
+      <button id="newRoundBtn" class="ghost-btn">New round</button>
+      <button id="revealBtn" class="ghost-btn">Reveal</button>
+    </div>
+    <p id="hostMsg" class="host-msg" aria-live="polite"></p>
+  </footer>
+
+</div>
+
+<!-- ============ SCRIM ============ -->
+<div class="scrim" id="scrim"></div>
+
+<!-- ============ SETTINGS DRAWER ============ -->
+<aside class="drawer" id="settingsDrawer" aria-hidden="true">
+  <div class="drawer-head">
+    <h2>Settings</h2>
+    <button class="icon-btn" id="closeSettings" aria-label="Close settings">✕</button>
+  </div>
+
+  <div class="drawer-body">
+    <label class="field">
+      <span class="field-label">Mode</span>
+      <select id="modeSelect" class="field-input">
+        <option value="live">Live — counts for chat leaderboard</option>
+        <option value="test">Test — practice, scores not saved</option>
+        <option value="offline">Offline — host plays solo</option>
+      </select>
+    </label>
+
+    <label class="field">
+      <span class="field-label">Difficulty</span>
+      <select id="difficultySelect" class="field-input">
+        <option value="easy">Easy — generous guesses</option>
+        <option value="medium" selected>Medium — balanced</option>
+        <option value="hard">Hard — tight guesses</option>
+        <option value="extreme">Extreme — optimal path only</option>
+      </select>
+    </label>
+
+    <div class="field">
+      <span class="field-label">Trail length (hops between countries)</span>
+      <div class="range-row">
+        <input id="minHops" type="number" min="2" max="9" value="3" class="field-input small" />
+        <span class="range-sep">to</span>
+        <input id="maxHops" type="number" min="2" max="9" value="6" class="field-input small" />
+      </div>
+    </div>
+
+    <label class="field field-row">
+      <span class="field-label">Auto-continue after each round</span>
+      <input id="autoContinueToggle" type="checkbox" class="field-checkbox" checked />
+    </label>
+
+    <label class="field" id="autoContinueDelayField">
+      <span class="field-label">Delay before next round (seconds)</span>
+      <input id="autoContinueDelay" type="number" min="5" max="60" value="12" class="field-input small" />
+    </label>
+
+    <hr class="divider" />
+
+    <h3 class="drawer-subhead">Scores</h3>
+    <div class="settings-actions">
+      <button id="resetTravleScores" class="danger-btn">Reset TRAVLE leaderboard</button>
+      <button id="resetTotalScores" class="danger-btn">Reset total leaderboard</button>
+    </div>
+  </div>
+</aside>
+
+<!-- ============ LEADERBOARD DRAWER ============ -->
+<aside class="drawer" id="leaderboardDrawer" aria-hidden="true">
+  <div class="drawer-head">
+    <h2>Leaderboard</h2>
+    <button class="icon-btn" id="closeLeaderboard" aria-label="Close leaderboard">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="tabs">
+      <button class="tab active" id="tabTravle" data-tab="travle">This game</button>
+      <button class="tab" id="tabTotal" data-tab="total">All games</button>
+    </div>
+    <ol class="leaderboard-list" id="leaderboardList"></ol>
+  </div>
+</aside>
+
+<!-- ============ ROUND RESULT MODAL ============ -->
+<div class="modal" id="roundModal" aria-hidden="true">
+  <div class="modal-card">
+    <h2 id="modalTitle">Round complete</h2>
+    <p id="modalBody"></p>
+    <div class="modal-path" id="modalPath"></div>
+    <div class="modal-actions">
+      <button class="primary-btn" id="modalNextBtn">Next round</button>
+    </div>
+    <p class="modal-countdown" id="modalCountdown"></p>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
