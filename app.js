@@ -1,8 +1,9 @@
 /* ==========================================================================
    TRAVLE — Live Edition — app.js
-   No frameworks, no build step, no network calls at runtime (besides the
-   page load itself) — everything below runs entirely on-device so the game
-   starts fast and never stalls mid-stream.
+   Runs entirely on-device (aside from the optional TikTok relay and the
+   one-time globe shape fetch), so the game starts fast and stays smooth
+   mid-stream. If the enhanced globe fails to load for any reason, the game
+   keeps working — it just falls back to a simpler dot-based globe.
    ========================================================================== */
 
 (() => {
@@ -12,8 +13,8 @@
    * 1. GRAPH SETUP
    * ------------------------------------------------------------------ */
 
-  const GRAPH = new Map();           // canonical name -> Set(neighbor canonical names)
-  const CANONICAL_BY_LOWER = new Map(); // "united states" -> "United States"
+  const GRAPH = new Map();
+  const CANONICAL_BY_LOWER = new Map();
 
   function ensureNode(name) {
     if (!GRAPH.has(name)) GRAPH.set(name, new Set());
@@ -27,18 +28,15 @@
 
   Object.entries(RAW_BORDERS).forEach(([name, neighbors]) => {
     neighbors.forEach((nb) => {
-      if (!CANONICAL_BY_LOWER.has(nb.toLowerCase())) {
-        CANONICAL_BY_LOWER.set(nb.toLowerCase(), nb);
-      }
+      if (!CANONICAL_BY_LOWER.has(nb.toLowerCase())) CANONICAL_BY_LOWER.set(nb.toLowerCase(), nb);
       ensureNode(nb);
       GRAPH.get(name).add(nb);
-      GRAPH.get(nb).add(name); // auto-symmetrize
+      GRAPH.get(nb).add(name);
     });
   });
 
   const PLAYABLE = [...GRAPH.keys()].filter((c) => GRAPH.get(c).size > 0);
 
-  // Common alternate names / abbreviations viewers are likely to type.
   const ALIASES = {
     "usa": "United States", "us": "United States", "u.s.": "United States",
     "u.s.a.": "United States", "united states of america": "United States", "america": "United States",
@@ -84,10 +82,7 @@
       const cur = q[head++];
       const d = dist.get(cur);
       for (const nb of GRAPH.get(cur)) {
-        if (!dist.has(nb)) {
-          dist.set(nb, d + 1);
-          q.push(nb);
-        }
+        if (!dist.has(nb)) { dist.set(nb, d + 1); q.push(nb); }
       }
     }
     return dist;
@@ -102,10 +97,7 @@
       const cur = q[head++];
       if (cur === b) break;
       for (const nb of GRAPH.get(cur)) {
-        if (!prev.has(nb)) {
-          prev.set(nb, cur);
-          q.push(nb);
-        }
+        if (!prev.has(nb)) { prev.set(nb, cur); q.push(nb); }
       }
     }
     if (!prev.has(b)) return null;
@@ -127,7 +119,6 @@
         return { start, end, optimal: dist.get(end) };
       }
     }
-    // fallback: relax the upper bound, keep the lower bound
     for (let attempt = 0; attempt < 250; attempt++) {
       const start = PLAYABLE[(Math.random() * PLAYABLE.length) | 0];
       const dist = bfsDistances(start);
@@ -137,7 +128,6 @@
         return { start, end, optimal: dist.get(end) };
       }
     }
-    // last resort: any two connected countries
     const start = PLAYABLE[0];
     const dist = bfsDistances(start);
     const any = PLAYABLE.find((c) => dist.has(c) && c !== start);
@@ -156,15 +146,13 @@
       if (!raw) return { travle: {}, total: {} };
       const parsed = JSON.parse(raw);
       return { travle: parsed.travle || {}, total: parsed.total || {} };
-    } catch (e) {
-      return { travle: {}, total: {} };
-    }
+    } catch (e) { return { travle: {}, total: {} }; }
   }
 
   let store = loadStore();
 
   function saveStore() {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) { /* storage unavailable — game still works, just won't persist */ }
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) { /* ignore — game still works */ }
   }
 
   function addPoints(viewerName, points) {
@@ -191,7 +179,6 @@
   const appEl = $("app");
   const modeBadge = $("modeBadge");
   const modeBanner = $("modeBanner");
-  const globeLayer = $("globeLayer");
   const guessesLeftEl = $("guessesLeft");
   const difficultyLabelEl = $("difficultyLabel");
   const routeTrack = $("routeTrack");
@@ -204,6 +191,7 @@
   const submitGuess = $("submitGuess");
   const newRoundBtn = $("newRoundBtn");
   const revealBtn = $("revealBtn");
+  const hintOutlineBtn = $("hintOutlineBtn");
   const hostMsg = $("hostMsg");
 
   const scrim = $("scrim");
@@ -216,6 +204,7 @@
   const maxHopsInput = $("maxHops");
   const autoContinueToggle = $("autoContinueToggle");
   const autoContinueDelay = $("autoContinueDelay");
+  const applySettingsBtn = $("applySettingsBtn");
   const resetTravleScores = $("resetTravleScores");
   const resetTotalScores = $("resetTotalScores");
 
@@ -226,12 +215,31 @@
   const tabTravle = $("tabTravle");
   const tabTotal = $("tabTotal");
 
+  const legendBtn = $("legendBtn");
+  const legendDrawer = $("legendDrawer");
+  const closeLegend = $("closeLegend");
+
   const roundModal = $("roundModal");
   const modalTitle = $("modalTitle");
   const modalBody = $("modalBody");
   const modalPath = $("modalPath");
   const modalNextBtn = $("modalNextBtn");
   const modalCountdown = $("modalCountdown");
+
+  const globeCard = $("globeCard");
+  const globeWrap = $("globeWrap");
+  const globeMount = $("globeMount");
+  const globeZoomIn = $("globeZoomIn");
+  const globeZoomOut = $("globeZoomOut");
+  const globeZoomSlider = $("globeZoomSlider");
+  const globeRecenter = $("globeRecenter");
+  const globeExpandBtn = $("globeExpandBtn");
+
+  const tiktokUsername = $("tiktokUsername");
+  const tiktokConnectBtn = $("tiktokConnectBtn");
+  const tiktokDisconnectBtn = $("tiktokDisconnectBtn");
+  const tiktokStatus = $("tiktokStatus");
+  const tiktokBadge = $("tiktokBadge");
 
   /* ------------------------------------------------------------------ *
    * 4. GAME STATE
@@ -240,14 +248,21 @@
   const DIFFICULTY_ALLOWANCE = { easy: 6, medium: 3, hard: 1, extreme: 0 };
   const DIFFICULTY_LABEL = { easy: "Easy", medium: "Medium", hard: "Hard", extreme: "Extreme" };
 
-  let mode = "live";           // live | test | offline
+  let mode = "live";
   let difficulty = "medium";
   let leaderboardTab = "travle";
   let autoTimer = null;
-
-  let round = null; // {start, end, optimal, startChain, endChain, used, guessesUsed, maxGuesses, active}
+  let round = null;
 
   function currentAllowance() { return DIFFICULTY_ALLOWANCE[difficulty]; }
+
+  function isOptimal(country) {
+    if (!round) return false;
+    const a = round.distFromStart.get(country);
+    const b = round.distFromEnd.get(country);
+    if (a === undefined || b === undefined) return false;
+    return a + b === round.optimalTotal;
+  }
 
   function startNewRound() {
     clearTimeout(autoTimer);
@@ -267,12 +282,24 @@
       maxGuesses: requiredIntermediate + currentAllowance(),
       active: true,
       wrongGuesses: [],
+      distFromStart: bfsDistances(picked.start),
+      distFromEnd: bfsDistances(picked.end),
+      optimalTotal: picked.optimal,
+      hintedOutline: null,
     };
     feedList.innerHTML = "";
     addFeed(`New trail: <span class="viewer">${picked.start}</span> → <span class="viewer">${picked.end}</span>`);
     hostMsg.textContent = "";
-    globeDrift = 0;
+    if (window.Globe && window.Globe.isReady()) window.Globe.centerOn(picked.start, picked.end);
     renderRound();
+  }
+
+  function buildCountryStateMap() {
+    const map = new Map();
+    round.startChain.forEach((c) => { map.set(c, c === round.start ? "endpoint" : (isOptimal(c) ? "optimal" : "good")); });
+    round.endChain.forEach((c) => { map.set(c, c === round.end ? "endpoint" : (isOptimal(c) ? "optimal" : "good")); });
+    round.wrongGuesses.forEach((c) => { if (!map.has(c)) map.set(c, "wrong"); });
+    return map;
   }
 
   function renderRound() {
@@ -291,7 +318,8 @@
       }
       const el = document.createElement("div");
       const isEndpoint = node === round.start || node === round.end;
-      el.className = "node " + (isEndpoint ? "endpoint" : "confirmed");
+      const optimalNode = !isEndpoint && isOptimal(node);
+      el.className = "node " + (isEndpoint ? "endpoint" : optimalNode ? "confirmed" : "good-node");
       el.textContent = node;
       routeTrack.appendChild(el);
       if (i < fullVisual.length - 1 && fullVisual[i + 1] !== "…GAP…") {
@@ -304,84 +332,61 @@
     renderGlobe();
   }
 
-  /* ---- floating globe ---- */
-  let globeDrift = 0;
-
-  function projectPoint(lat, lon, centerLat, centerLon, R, cx, cy) {
-    const toRad = Math.PI / 180;
-    const phi = lat * toRad, phi1 = centerLat * toRad;
-    const dLambda = (lon - centerLon) * toRad;
-    const cosC = Math.sin(phi1) * Math.sin(phi) + Math.cos(phi1) * Math.cos(phi) * Math.cos(dLambda);
-    const x = R * Math.cos(phi) * Math.sin(dLambda);
-    const y = R * (Math.cos(phi1) * Math.sin(phi) - Math.sin(phi1) * Math.cos(phi) * Math.cos(dLambda));
-    return { x: cx + x, y: cy - y, visible: cosC > -0.08 };
+  function renderGlobe() {
+    if (!round) return;
+    const countryState = buildCountryStateMap();
+    if (window.Globe && window.Globe.isReady()) {
+      window.Globe.render({ start: round.start, end: round.end, countryState, hintedOutline: round.hintedOutline });
+    } else {
+      legacyRenderGlobe(countryState);
+    }
   }
 
-  function renderGlobe() {
-    if (!round || !globeLayer) return;
-    const wrongRecent = round.wrongGuesses.slice(-6);
-    const points = [
-      ...round.startChain.map((c, i) => ({ name: c, cls: (c === round.start) ? "endpoint" : "confirmed" })),
-      ...round.endChain.map((c, i) => ({ name: c, cls: (c === round.end) ? "endpoint" : "confirmed" })),
-      ...wrongRecent.map((c) => ({ name: c, cls: "wrong" })),
-    ].filter((p) => COUNTRY_COORDS[p.name]);
-
-    if (!points.length) { globeLayer.innerHTML = ""; return; }
-
+  /* ---- legacy dot-based globe fallback (used only if the enhanced globe
+     can't load — e.g. offline, or the CDN scripts didn't reach the phone) ---- */
+  function legacyRenderGlobe(countryState) {
+    if (!globeMount) return;
+    let svgEl = globeMount.querySelector("svg.legacy-globe");
+    if (!svgEl) {
+      globeMount.innerHTML = `<svg class="legacy-globe" viewBox="0 0 220 220">
+        <defs><radialGradient id="legacyGrad" cx="35%" cy="30%" r="75%">
+          <stop offset="0%" stop-color="#274568"/><stop offset="100%" stop-color="#0b1526"/>
+        </radialGradient></defs>
+        <circle cx="110" cy="110" r="100" fill="url(#legacyGrad)"/>
+        <circle cx="110" cy="110" r="100" fill="none" stroke="#26385C" stroke-width="1.5"/>
+        <g id="legacyLayer"></g>
+      </svg>`;
+      svgEl = globeMount.querySelector("svg.legacy-globe");
+    }
+    const layer = svgEl.querySelector("#legacyLayer");
+    layer.innerHTML = "";
+    const R = 96, cx = 110, cy = 110;
+    const points = [...countryState.entries()].filter(([name]) => COUNTRY_COORDS[name]);
+    if (!points.length) return;
     let sx = 0, sy = 0, latSum = 0;
-    points.forEach((p) => {
-      const [lat, lon] = COUNTRY_COORDS[p.name];
+    points.forEach(([name]) => {
+      const [lat, lon] = COUNTRY_COORDS[name];
       const r = lon * Math.PI / 180;
       sx += Math.cos(r); sy += Math.sin(r); latSum += lat;
     });
-    const centerLon = Math.atan2(sy, sx) * 180 / Math.PI + globeDrift;
+    const centerLon = Math.atan2(sy, sx) * 180 / Math.PI;
     const centerLat = Math.max(-55, Math.min(55, latSum / points.length));
-
-    const R = 96, cx = 110, cy = 110;
-    globeLayer.innerHTML = "";
-
-    // trail links between consecutive confirmed chain nodes
-    const chainOrder = [...round.startChain, ...[...round.endChain].reverse()];
-    for (let i = 0; i < chainOrder.length - 1; i++) {
-      const [lat1, lon1] = COUNTRY_COORDS[chainOrder[i]] || [];
-      const [lat2, lon2] = COUNTRY_COORDS[chainOrder[i + 1]] || [];
-      if (lat1 === undefined || lat2 === undefined) continue;
-      const p1 = projectPoint(lat1, lon1, centerLat, centerLon, R, cx, cy);
-      const p2 = projectPoint(lat2, lon2, centerLat, centerLon, R, cx, cy);
-      if (!p1.visible || !p2.visible) continue;
-      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      line.setAttribute("class", "globe-link");
-      line.setAttribute("x1", p1.x); line.setAttribute("y1", p1.y);
-      line.setAttribute("x2", p2.x); line.setAttribute("y2", p2.y);
-      globeLayer.appendChild(line);
-    }
-
-    points.forEach((p) => {
-      const [lat, lon] = COUNTRY_COORDS[p.name];
-      const proj = projectPoint(lat, lon, centerLat, centerLon, R, cx, cy);
-      if (!proj.visible) return;
+    const colorFor = (cat) => cat === "endpoint" ? "#D6A24A" : cat === "optimal" ? "#4C9A6C" : cat === "good" ? "#E08A2B" : "#D9534F";
+    points.forEach(([name, cat]) => {
+      const [lat, lon] = COUNTRY_COORDS[name];
+      const toRad = Math.PI / 180;
+      const dLambda = (lon - centerLon) * toRad, phi = lat * toRad, phi1 = centerLat * toRad;
+      const cosC = Math.sin(phi1) * Math.sin(phi) + Math.cos(phi1) * Math.cos(phi) * Math.cos(dLambda);
+      if (cosC <= -0.08) return;
+      const x = cx + R * Math.cos(phi) * Math.sin(dLambda);
+      const y = cy - R * (Math.cos(phi1) * Math.sin(phi) - Math.sin(phi1) * Math.cos(phi) * Math.cos(dLambda));
       const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      dot.setAttribute("class", "globe-marker " + p.cls);
-      dot.setAttribute("cx", proj.x); dot.setAttribute("cy", proj.y);
-      dot.setAttribute("r", p.cls === "endpoint" ? 4.2 : p.cls === "wrong" ? 2.6 : 3.4);
-      globeLayer.appendChild(dot);
-
-      if (p.cls !== "wrong") {
-        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        label.setAttribute("class", "globe-label");
-        label.setAttribute("x", proj.x + 5);
-        label.setAttribute("y", proj.y + 3);
-        label.textContent = p.name;
-        globeLayer.appendChild(label);
-      }
+      dot.setAttribute("cx", x); dot.setAttribute("cy", y);
+      dot.setAttribute("r", cat === "endpoint" ? 4.2 : 3.2);
+      dot.setAttribute("fill", colorFor(cat));
+      layer.appendChild(dot);
     });
   }
-
-  setInterval(() => {
-    if (!round || !round.active) return;
-    globeDrift += 0.4;
-    renderGlobe();
-  }, 200);
 
   function addFeed(html) {
     const li = document.createElement("li");
@@ -401,21 +406,31 @@
     if (!round || !round.active) return;
     const rawGuess = guessInput.value;
     const viewerName = mode === "offline" ? "" : viewerInput.value.trim();
-    if (!rawGuess.trim()) return;
-
-    const country = resolveCountry(rawGuess);
     guessInput.value = "";
     guessInput.focus();
+    if (!rawGuess.trim()) return;
+    processGuess(rawGuess, viewerName, { silent: false });
+  }
+
+  // Shared by the manual "Guess" button and the TikTok auto-relay.
+  function processGuess(rawGuess, viewerNameRaw, opts) {
+    const silent = Boolean(opts && opts.silent);
+    if (!round || !round.active) return;
+    const viewerName = mode === "offline" ? "" : (viewerNameRaw || "").trim();
+
+    const country = resolveCountry(rawGuess);
 
     if (!country) {
-      hostMsg.textContent = `"${rawGuess.trim()}" isn't a country name I recognize — check spelling.`;
+      if (!silent) hostMsg.textContent = `"${String(rawGuess).trim()}" isn't a country name I recognize — check spelling.`;
       return;
     }
 
     if (round.used.has(country)) {
-      hostMsg.textContent = `${country} is already on the board.`;
+      if (!silent) hostMsg.textContent = `${country} is already on the board.`;
       return;
     }
+
+    if (round.hintedOutline === country) round.hintedOutline = null;
 
     const startFrontier = round.startChain[round.startChain.length - 1];
     const endFrontier = round.endChain[round.endChain.length - 1];
@@ -428,32 +443,26 @@
       round.startChain.push(country);
       round.used.add(country);
       round.guessesUsed++;
-      const perfect = round.guessesUsed === round.requiredIntermediate;
-      const pts = 10 + 25 + (perfect ? 20 : 0);
-      addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="tag-win">bridged the trail! 🎉</span>`);
+      const optimal = isOptimal(country);
+      const pts = optimal ? 3 : 1;
+      addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="tag-win">bridged the trail! 🎉 (+${pts})</span>`);
       if (mode === "live") addPoints(viewerName, pts);
       renderRound();
-      finishRound(true, perfect);
+      finishRound(true);
       return;
     }
 
-    if (connectsStart) {
-      round.startChain.push(country);
+    if (connectsStart || connectsEnd) {
+      if (connectsStart) { round.startChain.push(country); } else { round.endChain.push(country); }
       round.used.add(country);
       round.guessesUsed++;
-      addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="tag-good">connects from ${round.start} ${arrowFor("start")}</span>`);
-      if (mode === "live") addPoints(viewerName, 10);
-      renderRound();
-      checkOutOfGuesses();
-      return;
-    }
-
-    if (connectsEnd) {
-      round.endChain.push(country);
-      round.used.add(country);
-      round.guessesUsed++;
-      addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="tag-good">connects from ${round.end} ${arrowFor("end")}</span>`);
-      if (mode === "live") addPoints(viewerName, 10);
+      const optimal = isOptimal(country);
+      const pts = optimal ? 3 : 1;
+      const side = connectsStart ? round.start : round.end;
+      const tag = optimal ? "tag-win" : "tag-good";
+      const note = optimal ? "optimal move" : "valid, but not the shortest route";
+      addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="${tag}">${note}, connects from ${side} ${arrowFor(connectsStart ? "start" : "end")} (+${pts})</span>`);
+      if (mode === "live") addPoints(viewerName, pts);
       renderRound();
       checkOutOfGuesses();
       return;
@@ -473,35 +482,79 @@
       const side = (dStart ?? Infinity) <= (dEnd ?? Infinity) ? round.start : round.end;
       hint = `${best} border${best === 1 ? "" : "s"} away from ${side}`;
     }
-    addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="tag-bad">${hint}</span>`);
+    addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="tag-bad">${hint} (+0)</span>`);
+    renderRound();
+    checkOutOfGuesses();
+  }
+
+  function useHintOutline() {
+    if (!round || !round.active) return;
+    if (round.maxGuesses - round.guessesUsed <= 0) {
+      hostMsg.textContent = "No guesses left to spend on a hint.";
+      return;
+    }
+    const startFrontier = round.startChain[round.startChain.length - 1];
+    const endFrontier = round.endChain[round.endChain.length - 1];
+    const candidates = [...GRAPH.get(startFrontier), ...GRAPH.get(endFrontier)]
+      .filter((c) => !round.used.has(c) && c !== round.hintedOutline);
+    if (!candidates.length) {
+      hostMsg.textContent = "No hint available right now.";
+      return;
+    }
+    const optimalCandidates = candidates.filter((c) => isOptimal(c));
+    const pick = (optimalCandidates.length ? optimalCandidates : candidates)[0];
+    round.hintedOutline = pick;
+    round.guessesUsed++;
+    addFeed(`Outline hint revealed on the globe (−1 guess).`);
+    hostMsg.textContent = "";
     renderRound();
     checkOutOfGuesses();
   }
 
   function checkOutOfGuesses() {
-    if (round.guessesUsed >= round.maxGuesses) finishRound(false, false);
+    if (round.guessesUsed >= round.maxGuesses) finishRound(false);
   }
 
-  function finishRound(solved, perfect) {
+  function finishRound(solved) {
     round.active = false;
-    const finalPath = solved
-      ? [...round.startChain, ...[...round.endChain].reverse()]
-      : shortestPath(round.startChain[round.startChain.length - 1], round.endChain[round.endChain.length - 1]);
+    round.hintedOutline = null;
+    const finalChain = [...round.startChain, ...[...round.endChain].reverse()];
+    const canonicalOptimal = shortestPath(round.start, round.end) || [];
+    const rows = Math.max(finalChain.length, canonicalOptimal.length);
 
     modalPath.innerHTML = "";
-    (finalPath || []).forEach((c) => {
-      const el = document.createElement("div");
-      el.className = "node " + (c === round.start || c === round.end ? "endpoint" : "confirmed");
-      el.textContent = c;
-      modalPath.appendChild(el);
-    });
+    for (let i = 0; i < rows; i++) {
+      const guessed = finalChain[i];
+      const optimalC = canonicalOptimal[i];
+      const row = document.createElement("div");
+      row.className = "modal-path-row";
+
+      const left = document.createElement("span");
+      if (guessed) {
+        const cat = guessed === round.start || guessed === round.end ? "endpoint" : (isOptimal(guessed) ? "optimal" : "good");
+        left.className = "path-chip chip-" + cat;
+        left.textContent = guessed;
+      } else {
+        left.className = "path-chip chip-empty";
+        left.textContent = "—";
+      }
+
+      const right = document.createElement("span");
+      right.className = "path-chip chip-reference";
+      right.textContent = optimalC || "—";
+
+      row.appendChild(left);
+      row.appendChild(right);
+      modalPath.appendChild(row);
+    }
 
     if (solved) {
+      const perfect = round.guessesUsed === round.requiredIntermediate;
       modalTitle.textContent = perfect ? "Solved — perfect trail!" : "Trail complete!";
       modalBody.textContent = `Connected in ${round.guessesUsed} guess${round.guessesUsed === 1 ? "" : "es"} (optimal was ${round.requiredIntermediate}).`;
     } else {
       modalTitle.textContent = "Out of guesses";
-      modalBody.textContent = "Here's one valid trail that would have worked:";
+      modalBody.textContent = "Here's how your trail compares to an optimal one:";
     }
 
     openModal();
@@ -513,12 +566,8 @@
       clearTimeout(autoTimer);
       const tick = () => {
         remaining--;
-        if (remaining <= 0) {
-          startNewRound();
-        } else {
-          modalCountdown.textContent = `Next round in ${remaining}s…`;
-          autoTimer = setTimeout(tick, 1000);
-        }
+        if (remaining <= 0) { startNewRound(); }
+        else { modalCountdown.textContent = `Next round in ${remaining}s…`; autoTimer = setTimeout(tick, 1000); }
       };
       autoTimer = setTimeout(tick, 1000);
     } else {
@@ -528,8 +577,7 @@
 
   function revealRound() {
     if (!round || !round.active) return;
-    round.active = false;
-    finishRound(false, false);
+    finishRound(false);
   }
 
   /* ------------------------------------------------------------------ *
@@ -541,7 +589,7 @@
 
   function openDrawer(drawer) { scrim.classList.add("visible"); drawer.classList.add("open"); drawer.setAttribute("aria-hidden", "false"); }
   function closeDrawer(drawer) { scrim.classList.remove("visible"); drawer.classList.remove("open"); drawer.setAttribute("aria-hidden", "true"); }
-  function closeAllDrawers() { closeDrawer(settingsDrawer); closeDrawer(leaderboardDrawer); }
+  function closeAllDrawers() { closeDrawer(settingsDrawer); closeDrawer(leaderboardDrawer); closeDrawer(legendDrawer); }
 
   function renderLeaderboard() {
     const bucket = leaderboardTab === "travle" ? store.travle : store.total;
@@ -559,7 +607,96 @@
   }
 
   /* ------------------------------------------------------------------ *
-   * 6. EVENT WIRING
+   * 6. GLOBE CONTROLS
+   * ------------------------------------------------------------------ */
+
+  function syncZoomUI(pct) { globeZoomSlider.value = String(pct); }
+
+  globeZoomIn.addEventListener("click", () => {
+    if (window.Globe && window.Globe.isReady()) window.Globe.setZoomPercent(window.Globe.currentPercent() + 20);
+  });
+  globeZoomOut.addEventListener("click", () => {
+    if (window.Globe && window.Globe.isReady()) window.Globe.setZoomPercent(window.Globe.currentPercent() - 20);
+  });
+  globeZoomSlider.addEventListener("input", () => {
+    if (window.Globe && window.Globe.isReady()) window.Globe.setZoomPercent(parseInt(globeZoomSlider.value, 10));
+  });
+  globeRecenter.addEventListener("click", () => {
+    if (round && window.Globe && window.Globe.isReady()) { window.Globe.centerOn(round.start, round.end); syncZoomUI(window.Globe.currentPercent()); }
+  });
+  globeExpandBtn.addEventListener("click", () => {
+    const expanding = !globeWrap.classList.contains("expanded");
+    globeWrap.classList.toggle("expanded", expanding);
+    scrim.classList.toggle("visible", expanding);
+    globeExpandBtn.textContent = expanding ? "Shrink" : "Enlarge";
+    if (window.Globe && window.Globe.isReady()) setTimeout(() => window.Globe.resize(), 50);
+  });
+  scrim.addEventListener("click", () => {
+    if (globeWrap.classList.contains("expanded")) {
+      globeWrap.classList.remove("expanded");
+      globeExpandBtn.textContent = "Enlarge";
+      if (window.Globe && window.Globe.isReady()) setTimeout(() => window.Globe.resize(), 50);
+    }
+    closeAllDrawers();
+  });
+
+  /* ------------------------------------------------------------------ *
+   * 7. TIKTOK AUTO-CHAT RELAY
+   * ------------------------------------------------------------------ */
+
+  let socket = null;
+  try {
+    if (typeof io === "function") socket = io();
+  } catch (e) { socket = null; }
+
+  if (socket) {
+    socket.on("tiktok-status", (status) => {
+      if (status.connecting) {
+        tiktokStatus.textContent = `Connecting to @${status.username}…`;
+        tiktokStatus.className = "field-note tiktok-status";
+        return;
+      }
+      if (status.connected) {
+        tiktokStatus.textContent = `Connected to @${status.username} — chat guesses are live.`;
+        tiktokStatus.className = "field-note tiktok-status ok";
+        tiktokBadge.hidden = false;
+      } else {
+        tiktokBadge.hidden = true;
+        if (status.error) {
+          tiktokStatus.textContent = `Couldn't connect: ${status.error}`;
+          tiktokStatus.className = "field-note tiktok-status err";
+        } else if (status.reason) {
+          tiktokStatus.textContent = `Disconnected — ${status.reason}`;
+          tiktokStatus.className = "field-note tiktok-status err";
+        } else {
+          tiktokStatus.textContent = "Not connected — guesses must be typed manually.";
+          tiktokStatus.className = "field-note tiktok-status";
+        }
+      }
+    });
+
+    let lastAutoGuessAt = 0;
+    socket.on("tiktok-comment", ({ commenter, text }) => {
+      const now = Date.now();
+      if (now - lastAutoGuessAt < 600) return; // gentle throttle so a burst of chat doesn't flood the board
+      lastAutoGuessAt = now;
+      processGuess(text, commenter, { silent: true });
+    });
+
+    tiktokConnectBtn.addEventListener("click", () => {
+      const uname = tiktokUsername.value.trim();
+      if (!uname) { tiktokStatus.textContent = "Enter a TikTok username first."; tiktokStatus.className = "field-note tiktok-status err"; return; }
+      socket.emit("tiktok-connect", uname);
+    });
+    tiktokDisconnectBtn.addEventListener("click", () => socket.emit("tiktok-disconnect"));
+  } else {
+    tiktokConnectBtn.disabled = true;
+    tiktokDisconnectBtn.disabled = true;
+    tiktokStatus.textContent = "Auto-chat isn't available on this deployment.";
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 8. EVENT WIRING
    * ------------------------------------------------------------------ */
 
   submitGuess.addEventListener("click", handleGuess);
@@ -567,6 +704,7 @@
 
   newRoundBtn.addEventListener("click", startNewRound);
   revealBtn.addEventListener("click", revealRound);
+  hintOutlineBtn.addEventListener("click", useHintOutline);
   modalNextBtn.addEventListener("click", startNewRound);
 
   feedToggle.addEventListener("click", () => {
@@ -578,7 +716,8 @@
   closeSettings.addEventListener("click", () => closeDrawer(settingsDrawer));
   trophyBtn.addEventListener("click", () => { renderLeaderboard(); openDrawer(leaderboardDrawer); });
   closeLeaderboard.addEventListener("click", () => closeDrawer(leaderboardDrawer));
-  scrim.addEventListener("click", closeAllDrawers);
+  legendBtn.addEventListener("click", () => openDrawer(legendDrawer));
+  closeLegend.addEventListener("click", () => closeDrawer(legendDrawer));
 
   const MODE_BANNER_TEXT = {
     live: "",
@@ -596,18 +735,22 @@
     modeBanner.classList.toggle("show", Boolean(text));
   }
 
-  modeSelect.addEventListener("change", () => {
-    mode = modeSelect.value;
-    applyModeUI();
-  });
-
-  difficultySelect.addEventListener("change", () => { difficulty = difficultySelect.value; });
-
+  // Settings only take effect when "Apply" is tapped — so a host can line
+  // everything up (mode, difficulty, trail length) before committing.
   minHopsInput.addEventListener("change", () => {
     if (parseInt(minHopsInput.value, 10) > parseInt(maxHopsInput.value, 10)) maxHopsInput.value = minHopsInput.value;
   });
   maxHopsInput.addEventListener("change", () => {
     if (parseInt(maxHopsInput.value, 10) < parseInt(minHopsInput.value, 10)) minHopsInput.value = maxHopsInput.value;
+  });
+
+  applySettingsBtn.addEventListener("click", () => {
+    mode = modeSelect.value;
+    difficulty = difficultySelect.value;
+    applyModeUI();
+    closeDrawer(settingsDrawer);
+    startNewRound();
+    hostMsg.textContent = "Settings applied — new round started.";
   });
 
   resetTravleScores.addEventListener("click", () => {
@@ -626,10 +769,22 @@
     });
   });
 
+  window.addEventListener("resize", () => {
+    if (window.Globe && window.Globe.isReady()) window.Globe.resize();
+  });
+
   /* ------------------------------------------------------------------ *
-   * 7. INIT
+   * 9. INIT
    * ------------------------------------------------------------------ */
 
   applyModeUI();
-  startNewRound();
+
+  if (window.Globe) {
+    window.Globe.onZoomChange(syncZoomUI);
+    window.Globe.init(globeMount).then((ok) => {
+      startNewRound(); // (re)draws once the globe is ready, or falls back gracefully if not
+    }).catch(() => { startNewRound(); });
+  } else {
+    startNewRound();
+  }
 })();

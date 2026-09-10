@@ -25,7 +25,9 @@
       </div>
     </div>
     <div class="topbar-actions">
+      <span id="tiktokBadge" class="badge tiktok-badge" hidden>🎧</span>
       <span id="modeBadge" class="badge">LIVE</span>
+      <button id="legendBtn" class="icon-btn" title="How to play &amp; legend" aria-label="How to play and legend">?</button>
       <button id="trophyBtn" class="icon-btn" title="Leaderboard" aria-label="Leaderboard">🏆</button>
       <button id="settingsBtn" class="icon-btn" title="Settings" aria-label="Settings">⚙</button>
     </div>
@@ -35,26 +37,17 @@
   <main class="board">
 
     <section class="globe-card" id="globeCard">
-      <div class="globe-wrap">
-        <svg class="globe-shell" viewBox="0 0 220 220" aria-hidden="true">
-          <defs>
-            <radialGradient id="globeShade" cx="38%" cy="32%" r="75%">
-              <stop offset="0%" stop-color="#274568"/>
-              <stop offset="60%" stop-color="#16294a"/>
-              <stop offset="100%" stop-color="#0c1730"/>
-            </radialGradient>
-          </defs>
-          <circle cx="110" cy="110" r="100" fill="url(#globeShade)"/>
-          <circle cx="110" cy="110" r="100" fill="none" stroke="var(--line)" stroke-width="1.5"/>
-          <ellipse cx="110" cy="110" rx="100" ry="34" fill="none" stroke="#3a5580" stroke-width="0.8" opacity="0.55"/>
-          <ellipse cx="110" cy="110" rx="100" ry="66" fill="none" stroke="#3a5580" stroke-width="0.8" opacity="0.4"/>
-          <ellipse cx="110" cy="110" rx="34" ry="100" fill="none" stroke="#3a5580" stroke-width="0.8" opacity="0.4"/>
-          <ellipse cx="110" cy="110" rx="66" ry="100" fill="none" stroke="#3a5580" stroke-width="0.8" opacity="0.3"/>
-          <line x1="10" y1="110" x2="210" y2="110" stroke="#3a5580" stroke-width="0.8" opacity="0.35"/>
-        </svg>
-        <svg class="globe-layer" id="globeLayer" viewBox="0 0 220 220"></svg>
+      <div class="globe-toolbar">
+        <button id="globeZoomOut" class="globe-btn" title="Zoom out" aria-label="Zoom out">−</button>
+        <input id="globeZoomSlider" type="range" min="10" max="500" value="100" class="globe-zoom-slider" aria-label="Globe zoom percent" />
+        <button id="globeZoomIn" class="globe-btn" title="Zoom in" aria-label="Zoom in">+</button>
+        <button id="globeRecenter" class="globe-btn globe-btn-text" title="Recenter on start &amp; target">Recenter</button>
+        <button id="globeExpandBtn" class="globe-btn globe-btn-text" title="Enlarge globe">Enlarge</button>
       </div>
-      <p class="globe-caption">Gold = start &amp; target · Green = connected · Coral = tried, not connected</p>
+      <div class="globe-wrap" id="globeWrap">
+        <div id="globeMount" class="globe-mount"></div>
+      </div>
+      <p class="globe-caption">Drag to rotate · pinch or use +/− to zoom · tap Enlarge for full screen</p>
     </section>
 
     <section class="route-card">
@@ -96,6 +89,7 @@
     </div>
     <div class="host-row host-row-actions">
       <button id="newRoundBtn" class="ghost-btn">New round</button>
+      <button id="hintOutlineBtn" class="ghost-btn">Hint: outline (−1 guess)</button>
       <button id="revealBtn" class="ghost-btn">Reveal</button>
     </div>
     <p id="hostMsg" class="host-msg" aria-live="polite"></p>
@@ -114,6 +108,22 @@
   </div>
 
   <div class="drawer-body">
+    <h3 class="drawer-subhead">TikTok auto-chat</h3>
+    <p class="field-note">Optional — connects to your LIVE room and feeds real chat guesses straight into the game. Uses an unofficial method that can occasionally misbehave, so the manual boxes below always keep working as a backup.</p>
+    <div class="field">
+      <span class="field-label">Your TikTok username</span>
+      <div class="range-row">
+        <input id="tiktokUsername" type="text" class="field-input" placeholder="e.g. yourhandle (no @)" style="flex:1" />
+      </div>
+    </div>
+    <div class="settings-actions" style="flex-direction: row; gap: 8px;">
+      <button id="tiktokConnectBtn" class="primary-btn" style="flex:1">Connect</button>
+      <button id="tiktokDisconnectBtn" class="ghost-btn" style="flex:1">Disconnect</button>
+    </div>
+    <p id="tiktokStatus" class="field-note tiktok-status">Not connected — guesses must be typed manually.</p>
+
+    <hr class="divider" />
+
     <label class="field">
       <span class="field-label">Mode</span>
       <select id="modeSelect" class="field-input">
@@ -152,6 +162,9 @@
       <input id="autoContinueDelay" type="number" min="5" max="60" value="12" class="field-input small" />
     </label>
 
+    <button id="applySettingsBtn" class="primary-btn" style="width:100%">Apply settings &amp; start new round</button>
+    <p class="field-note" id="applyNote">Changes here only take effect once you tap Apply.</p>
+
     <hr class="divider" />
 
     <h3 class="drawer-subhead">Scores</h3>
@@ -177,11 +190,45 @@
   </div>
 </aside>
 
+<!-- ============ LEGEND / HOW TO PLAY DRAWER ============ -->
+<aside class="drawer" id="legendDrawer" aria-hidden="true">
+  <div class="drawer-head">
+    <h2>How to play</h2>
+    <button class="icon-btn" id="closeLegend" aria-label="Close legend">✕</button>
+  </div>
+  <div class="drawer-body">
+    <p class="field-note">Two countries are picked — a start and a target. Chat calls out countries that could form a land-border chain between them. The host (you) types each guess in, with the guesser's name.</p>
+
+    <h3 class="drawer-subhead">Colors on the globe &amp; trail</h3>
+    <ul class="legend-list">
+      <li><span class="swatch swatch-endpoint"></span> Start &amp; target country</li>
+      <li><span class="swatch swatch-optimal"></span> Accepted guess — on the shortest possible path</li>
+      <li><span class="swatch swatch-good"></span> Accepted guess — valid, but a longer route</li>
+      <li><span class="swatch swatch-wrong"></span> Guessed, but not connected to the trail</li>
+      <li><span class="swatch swatch-hint"></span> Outline hint — a valid next country, shape only</li>
+      <li><span class="swatch swatch-neutral"></span> Not yet guessed</li>
+    </ul>
+
+    <h3 class="drawer-subhead">Scoring</h3>
+    <ul class="legend-list">
+      <li><b>3 points</b> — the guess sits on the shortest possible path</li>
+      <li><b>1 point</b> — the guess is valid and connects, just not the optimal route</li>
+      <li><b>0 points</b> — the guess doesn't connect to either end of the trail yet</li>
+      <li>Guesses run out based on difficulty — Easy gives the most room for mistakes, Extreme allows none.</li>
+      <li>The outline hint costs 1 guess, same as a wrong guess.</li>
+    </ul>
+  </div>
+</aside>
+
 <!-- ============ ROUND RESULT MODAL ============ -->
 <div class="modal" id="roundModal" aria-hidden="true">
   <div class="modal-card">
     <h2 id="modalTitle">Round complete</h2>
     <p id="modalBody"></p>
+    <div class="modal-path-header">
+      <span>Your trail</span>
+      <span>Optimal trail</span>
+    </div>
     <div class="modal-path" id="modalPath"></div>
     <div class="modal-actions">
       <button class="primary-btn" id="modalNextBtn">Next round</button>
@@ -190,8 +237,12 @@
   </div>
 </div>
 
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 <script src="data.js"></script>
 <script src="coords.js"></script>
+<script src="globe.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

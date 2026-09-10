@@ -6,140 +6,194 @@ Gaming LIVE Mode**. You never touch code — just follow the steps below.
 
 ## What this actually is
 
-Five plain files (no installs, no server, nothing to "run"):
+A small always-on server (so it can optionally listen to your TikTok LIVE
+chat automatically) plus the game itself:
 
-- `index.html` — the game screen
-- `style.css` — the look
-- `app.js` — the game logic (166 countries' worth of land borders, all the rules, scoring, leaderboard, the globe)
-- `data.js` — the country border data the game uses
-- `coords.js` — rough map coordinates for each country, used to place it on the floating globe
+- `server.js` — the server: hosts the game and (optionally) connects to your TikTok LIVE room
+- `package.json` — tells Render which small libraries the server needs
+- `public/index.html` — the game screen
+- `public/style.css` — the look
+- `public/app.js` — game logic: rules, scoring, leaderboard, hints
+- `public/globe.js` — the interactive draggable/zoomable globe
+- `public/data.js` — land-border data for 166 countries
+- `public/coords.js` — rough map coordinates, used as a backup for the handful of tiny countries the globe can't draw a shape for
 
-These five files together ARE the whole game. GitHub just stores them.
-Render just serves them as a website. Nothing else is needed.
+You never run anything yourself — GitHub stores the files, Render runs the
+server continuously and gives you a permanent web address.
+
+**Auto-chat is optional.** If you never connect a TikTok username in
+Settings, the game behaves exactly like a normal webpage — you just won't
+have the option to skip typing chat's guesses in yourself.
 
 ---
 
 ## PART 1 — Put the files on GitHub
 
 1. Go to **github.com** and log in.
-2. Click the **+** icon (top right) → **New repository**.
-3. Name it something like `travle-live` → keep it **Public** → click **Create repository**.
-4. On the new repo's page, click **"uploading an existing file"** (a blue link in the middle of the page).
-5. Drag all 5 files (`index.html`, `style.css`, `app.js`, `data.js`, `coords.js`) into the upload box.
-6. Scroll down, click the green **Commit changes** button.
-
-That's it — your code is on GitHub.
+2. Click **+** → **New repository**. Name it `travle-live`, keep it
+   **Public**, click **Create repository**.
+3. Click **"uploading an existing file."**
+4. Drag in `server.js`, `package.json`, and `README.md` from the top level.
+5. Now you need a `public` **folder** in the repo (not just files) —
+   GitHub's upload box supports this: drag in the whole `public` folder at
+   once (with `index.html`, `style.css`, `app.js`, `globe.js`, `data.js`,
+   `coords.js` inside it) and GitHub will recreate the folder structure
+   automatically. If your browser only lets you pick files, drag the
+   **folder icon itself** into the upload box rather than opening it first.
+6. Scroll down, click **Commit changes**.
+7. Double-check on the repo's main page that you see a `public/` folder
+   link, not six loose files — if the files ended up loose at the top
+   level instead of inside `public/`, open each one, click the pencil
+   (edit) icon, and rename e.g. `index.html` to `public/index.html`, which
+   moves it into that folder. Repeat for the 5 other frontend files.
 
 ---
 
 ## PART 2 — Deploy it on Render
 
+This time it's a **Web Service**, not a Static Site — the server needs to
+stay running so it can hold a live connection to TikTok.
+
 1. Go to **render.com** and log in.
-2. Click **New +** → **Static Site**.
-3. Connect your GitHub account if it asks, then select the `travle-live` repository you just made.
+2. Click **New +** → **Web Service**.
+3. Connect GitHub if asked, then select the `travle-live` repository.
 4. On the setup screen:
-   - **Build Command:** leave it **completely empty**
-   - **Publish Directory:** type a single dot → `.`
-5. Click **Create Static Site**.
-6. Wait about 30–60 seconds. Render will give you a live web address at the
-   top of the page, looking like:
-   `https://travle-live-xxxx.onrender.com`
+   - **Runtime:** Node
+   - **Build Command:** `npm install`
+   - **Start Command:** `npm start`
+   - **Instance Type:** the free tier works, but see the warning below
+5. Before clicking create, open **Advanced** → **Environment Variables**
+   and add one (see Part 3 for how to get the value):
+   - **Key:** `TIKTOK_SIGN_API_KEY`
+   - **Value:** *(from eulerstream.com — Part 3)*
+   You can skip this for now and add it later if you just want to try the
+   game without auto-chat first.
+6. Click **Create Web Service**. Wait 1–2 minutes for the first build.
+   Render gives you a permanent address like
+   `https://travle-live-xxxx.onrender.com` — bookmark it.
 
-That address is your game. Bookmark it. Open it any time on your phone's
-browser and the game is there — no login, nothing to install.
+> ⚠️ **Free-tier sleep warning:** Render's free Web Services fall asleep
+> after 15 minutes with no traffic, and take 30–60 seconds to wake back up
+> on the next visit. That's a real risk mid-stream. Two ways to avoid it:
+> open your game link and leave the tab open for a few minutes **before**
+> you go live (this wakes it up, and an open page counts as traffic that
+> keeps it awake), or upgrade that one service to Render's cheapest paid
+> tier (a few dollars a month) so it never sleeps at all — worth it if you
+> stream regularly.
 
-> **Anytime you want to change anything later** (colors, wording, difficulty
-> defaults): tell me what you want changed, I'll hand you updated file(s),
-> you re-upload just that file to the same GitHub repo (drag it in, GitHub
-> asks "replace this file?", say yes, commit). Render automatically
-> re-publishes within about a minute — you never touch Render again after
-> today.
-
----
-
-## PART 3 — Try it before you go live (Test Mode)
-
-1. On your phone, open your Render address in Chrome (or any browser).
-2. Tap the **⚙ gear icon** top-right → set **Mode** to **Test**.
-3. Type any name into "Viewer name" and any country into the guess box, tap
-   **Guess**, and watch how the trail fills in. Nothing here is saved to the
-   leaderboard, so play around freely.
-4. When you're comfortable with how it works, switch Mode back to **Live**
-   for your real stream (this is what actually scores points to your
-   leaderboard) — or leave it on Live the whole time and just don't
-   announce it to chat while testing, since Test/Live only affects
-   whether points get saved.
+> **Making changes later:** tell me what to change, I'll hand you updated
+> file(s), you replace that same file in GitHub (drag it in, confirm
+> "replace," commit). Render redeploys automatically within a minute or two.
 
 ---
 
-## PART 4 — Going live on TikTok
+## PART 3 — Turning on TikTok auto-chat (optional)
 
-Mobile Gaming LIVE Mode broadcasts your **whole phone screen** (with your
-camera as a small bubble), so the game just needs to be visible on your
-screen when you start:
+This uses an **unofficial** method — TikTok doesn't provide auto-chat
+access to ordinary creators, so this works by the same technique real-time
+chat overlay tools use. It can occasionally misbehave if TikTok changes
+something on their end, which is exactly why every manual control (typing
+a guess in yourself) still works at all times as a backup — you're never
+stuck if auto-chat has a bad night.
 
-1. Open your Render game link in your phone's browser **first**.
-2. *(Optional, makes it feel like a real app)* In Chrome, tap the **⋮** menu
-   → **Add to Home screen**. Now you can launch it full-screen without
-   browser address bars showing.
-3. Open the **TikTok app** → tap **LIVE** → choose **Mobile Gaming** mode
-   (the mode you said is already available to you).
-4. TikTok will ask you to select what to broadcast — pick your phone screen
-   / the game app you just opened, per TikTok's own on-screen instructions
-   for that mode (this step is controlled by TikTok's system screen-share
-   permission, not by the game).
-5. Go live. Your camera bubble sits over the game, viewers see both.
-6. As comments come in, read a viewer's guess, type their **name** into
-   "Viewer name," type their **guessed country** into the guess box, tap
-   **Guess**. The trail updates live and their score updates instantly.
+1. Go to **eulerstream.com** and create a free account.
+2. Find your **API key** in your dashboard.
+3. In Render, open your service → **Environment** → add/edit
+   `TIKTOK_SIGN_API_KEY` with that value → **Save Changes** (Render will
+   redeploy automatically).
+4. In the game, tap **⚙ Settings** → under "TikTok auto-chat," type your
+   TikTok **username** (no @) → **Connect**.
+5. You should see "Connected to @you — chat guesses are live." If it
+   fails, the status box will show why — try again, or just keep using the
+   manual guess box for that stream.
+
+Once connected, real chat messages are read automatically: anything that
+matches a country name becomes a guess under that viewer's name, scored
+exactly like a manual guess. Everything else in chat is silently ignored,
+so it won't spam your activity feed.
 
 ---
 
-## PART 5 — Sharing this with your friend
+## PART 4 — Try it before you go live (Test Mode)
 
-She does **not** need her own GitHub or Render account. She can simply open
-your same game link (`https://travle-live-xxxx.onrender.com`) on her own
-phone and host her own live session with it — each phone keeps its own
-separate leaderboard automatically (leaderboards are stored on-device, not
-shared between phones), so your scores and her scores never mix.
+1. Open your Render address on your phone.
+2. Tap **⚙** → set **Mode** to **Test** → tap **Apply settings & start new
+   round**.
+3. Play a round or two. Nothing here touches the leaderboard, so experiment
+   freely — including trying TikTok auto-chat in Test mode with your own
+   real stream, since Test only blocks scoring, not the chat connection.
+4. Switch **Mode** back to **Live** (and Apply) when you're ready for real.
 
-If later you'd rather she have a fully separate copy under her own name, I
-can walk you through cloning the repo for her — but for now, sharing the one
-link is the simplest and works immediately.
+---
+
+## PART 5 — Going live on TikTok
+
+1. Open your Render game link in your phone's browser first.
+2. *(Optional)* In Chrome: **⋮** → **Add to Home screen**, for a
+   full-screen, app-like feel.
+3. Open TikTok → **LIVE** → **Mobile Gaming** mode → follow TikTok's own
+   on-screen steps to select your phone screen/browser as the broadcast
+   source.
+4. Go live. Your camera bubble sits over the game.
+5. If you've connected TikTok auto-chat, guesses just appear as chat sends
+   them. Otherwise (or as backup any time), read a guess, type the
+   **viewer's name** and their **guessed country**, tap **Guess**.
+
+---
+
+## PART 6 — Sharing this with your friend
+
+She doesn't need her own GitHub, Render, or eulerstream account — she can
+open your same game link on her own phone and host her own session. Each
+phone keeps its own separate leaderboard (stored on-device), so your scores
+and hers never mix. If she wants to auto-connect her own TikTok chat, she'd
+enter her own username in Settings — the one `TIKTOK_SIGN_API_KEY` on your
+server works for anyone using the page, since it's just what unlocks the
+connection method itself, not tied to a specific TikTok account.
 
 ---
 
 ## How the game actually plays
 
-- The game picks a **start country** and an **end country**.
-- Someone in chat guesses a country. If it shares a land border with either
-  end of the currently-revealed trail, it gets added to the board (the trail
-  can grow inward from *either* end).
-- If a guess is wrong, the game gives a hint: *"3 borders away from
-  Germany"* — so chat knows roughly which direction to think.
-- The round ends when both growing ends of the trail connect, or when
-  guesses run out — either way, one valid full trail is revealed.
-- **Difficulty** (in ⚙ Settings) controls how many extra wrong guesses are
-  allowed beyond the shortest possible path: Easy is forgiving, Extreme
-  allows zero mistakes.
-- **Trail length** (also in Settings) controls how far apart the two
-  countries are picked, so you can keep rounds short and fast, or long and
-  challenging.
-- **Auto-continue** starts the next round automatically after each result,
-  with a countdown you control — so the show never stalls waiting on you.
-- Tap the **🏆 trophy** icon anytime to see the Top 10 leaderboard for this
-  game, or the all-games running total (ready for when we add the next
-  game). Both can be reset independently from Settings.
-- **Offline mode** hides the viewer-name field entirely, for when you just
-  want to play solo.
+- The game picks a **start country** and an **end country**. Guessed
+  countries build the trail inward from either end — a chain can grow from
+  both sides until they connect.
+- **Scoring:** 3 points for a guess that sits on the *shortest possible*
+  path between the two ends; 1 point for a guess that's valid and connects,
+  just not the shortest route; 0 for a guess that doesn't connect yet
+  (you'll get a hint like "3 borders away from Germany" instead).
+- **Outline hint:** tap "Hint: outline" to reveal the *shape* of one valid
+  next country on the globe (no name shown) — costs 1 guess, same as a
+  wrong guess.
+- The **globe** shows real country shapes: gold for the two end
+  countries, green for guesses on the optimal path, orange for valid-but-
+  longer guesses, red-outlined for wrong tries, and a plain color for
+  everywhere else. Drag to rotate it in any direction, pinch or use the
+  +/− controls to zoom from 10% to 500%, and tap **Enlarge** to fill the
+  screen. Tap **Recenter** any time to snap back to a view showing both
+  countries.
+- **Settings** (⚙) — Mode (Live/Test/Offline), Difficulty, trail length,
+  auto-continue — only take effect once you tap **Apply settings & start
+  new round**, so you can line everything up first.
+- **Difficulty** controls how many extra wrong guesses are allowed beyond
+  the optimal path — Easy is forgiving, Extreme allows none.
+- Tap **?** any time for the full color legend, scoring breakdown, and a
+  quick how-to-play reminder.
+- Tap **🏆** for the Top 10 leaderboard (this game, or the all-games
+  running total) — both resettable independently in Settings.
+- **Offline mode** hides the viewer-name field and leaderboard entirely,
+  for solo play.
 
 ## A note on country names
 
 Chat will misspell things — the game already understands common
-alternatives (USA, UK, DRC, Ivory Coast, Czech Republic, Burma, etc.) so
-minor variations still work.
+alternatives (USA, UK, DRC, Ivory Coast, Czech Republic, Burma, etc.).
 
 ---
 
-Once you've deployed this and had a chance to try Test Mode, let me know how
-it feels and we'll move on to the next game from your list.
+I haven't been able to run this end-to-end myself (my workspace can't
+reach the internet to install and test the TikTok library live), so the
+auto-chat piece in particular is built carefully from documentation and
+your own debugging notes, but genuinely needs a real test on your end.
+If it misbehaves, the manual guess box always keeps working — tell me what
+you're seeing and we'll fix it together.
