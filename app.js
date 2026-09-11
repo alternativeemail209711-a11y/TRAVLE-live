@@ -227,6 +227,7 @@
   const tabTotal = $("tabTotal");
 
   const legendBtn = $("legendBtn");
+  const fullscreenBtn = $("fullscreenBtn");
   const legendDrawer = $("legendDrawer");
   const closeLegend = $("closeLegend");
 
@@ -662,10 +663,10 @@
   }
 
   globeZoomIn.addEventListener("click", () => {
-    if (window.Globe && window.Globe.isReady()) window.Globe.setZoomPercent(window.Globe.currentPercent() + 20);
+    if (window.Globe && window.Globe.isReady()) window.Globe.setZoomPercent(Math.round(window.Globe.currentPercent() * 1.3));
   });
   globeZoomOut.addEventListener("click", () => {
-    if (window.Globe && window.Globe.isReady()) window.Globe.setZoomPercent(window.Globe.currentPercent() - 20);
+    if (window.Globe && window.Globe.isReady()) window.Globe.setZoomPercent(Math.round(window.Globe.currentPercent() / 1.3));
   });
   globeZoomSlider.addEventListener("input", () => {
     if (window.Globe && window.Globe.isReady()) window.Globe.setZoomPercent(parseInt(globeZoomSlider.value, 10));
@@ -795,6 +796,33 @@
   trophyBtn.addEventListener("click", () => { renderLeaderboard(); openDrawer(leaderboardDrawer); });
   closeLeaderboard.addEventListener("click", () => closeDrawer(leaderboardDrawer));
   legendBtn.addEventListener("click", () => openDrawer(legendDrawer));
+
+  // Whole-app fullscreen. The CSS layout already fits the viewport without
+  // scrolling regardless of this — this button is the bonus of also hiding
+  // the browser's own address bar/chrome where the platform allows it
+  // (most Android browsers; not supported by iOS Safari, so it's a no-op
+  // there and the page still behaves correctly without it).
+  function isFullscreen() {
+    return Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+  }
+  function syncFullscreenIcon() {
+    fullscreenBtn.textContent = isFullscreen() ? "⤓" : "⛶";
+    fullscreenBtn.title = isFullscreen() ? "Exit full screen" : "Full screen";
+  }
+  fullscreenBtn.addEventListener("click", async () => {
+    try {
+      if (!isFullscreen()) {
+        const el = document.documentElement;
+        if (el.requestFullscreen) await el.requestFullscreen();
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      } else {
+        if (document.exitFullscreen) await document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      }
+    } catch (e) { /* unsupported on this browser — the page still fits fine without it */ }
+  });
+  document.addEventListener("fullscreenchange", syncFullscreenIcon);
+  document.addEventListener("webkitfullscreenchange", syncFullscreenIcon);
   closeLegend.addEventListener("click", () => closeDrawer(legendDrawer));
 
   const MODE_BANNER_TEXT = {

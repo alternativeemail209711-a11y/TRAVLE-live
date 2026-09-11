@@ -105,6 +105,27 @@ window.Globe = (() => {
     return { w: Math.max(rect.width, 120), h: Math.max(rect.height, 120) };
   }
 
+  // The 110m main dataset omits these — they're too small to show at that
+  // resolution. Fetched separately, as tiny individual files, so Monaco,
+  // San Marino, etc. get a real outline instead of a plain dot marker.
+  const MICRO_STATE_ISO3 = {
+    "Andorra": "and", "Monaco": "mco", "San Marino": "smr", "Vatican City": "vat",
+    "Liechtenstein": "lie", "Malta": "mlt", "Maldives": "mdv", "Mauritius": "mus",
+  };
+
+  async function loadMicroStates() {
+    const results = await Promise.all(Object.entries(MICRO_STATE_ISO3).map(async ([name, iso3]) => {
+      try {
+        const res = await fetch(`https://cdn.jsdelivr.net/npm/world-countries@5.1.0/data/${iso3}.geo.json`);
+        if (!res.ok) return null;
+        const geo = await res.json();
+        const feature = geo.type === "FeatureCollection" ? geo.features[0] : geo;
+        return feature && feature.geometry ? [name, feature] : null;
+      } catch (e) { return null; }
+    }));
+    return results.filter(Boolean);
+  }
+
   async function loadTopology() {
     const res = await fetch(TOPO_URL);
     if (!res.ok) throw new Error("topology fetch failed: " + res.status);
@@ -139,7 +160,7 @@ window.Globe = (() => {
   function currentPercent() { return Math.round((currentScale / baseScale) * 100); }
 
   function setZoomPercent(pct) {
-    pct = Math.max(10, Math.min(500, Math.round(pct)));
+    pct = Math.max(10, Math.min(1000, Math.round(pct)));
     currentScale = baseScale * (pct / 100);
     if (projection) projection.scale(currentScale);
     redraw();
@@ -163,7 +184,8 @@ window.Globe = (() => {
 
     svg.node().addEventListener("wheel", (event) => {
       event.preventDefault();
-      setZoomPercent(currentPercent() + (event.deltaY < 0 ? 8 : -8));
+      const factor = event.deltaY < 0 ? 1.08 : 1 / 1.08;
+      setZoomPercent(currentPercent() * factor);
     }, { passive: false });
 
     let touchMode = null; // "rotate" | "pinch" | null
@@ -301,6 +323,13 @@ window.Globe = (() => {
         featureByCountry = buildFeatureIndex(allFeatures);
       } catch (e) {
         featureByCountry = new Map(); // fine — everything just renders as dot markers instead
+      }
+
+      try {
+        const microEntries = await loadMicroStates();
+        microEntries.forEach(([name, feature]) => featureByCountry.set(name, feature));
+      } catch (e) {
+        // fine — those handful of tiny countries just stay as dot markers
       }
 
       countriesLayer.selectAll("path.country")
