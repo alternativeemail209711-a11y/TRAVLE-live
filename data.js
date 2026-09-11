@@ -94,7 +94,8 @@ const RAW_BORDERS = {
   "Iraq": ["Turkey", "Iran", "Kuwait", "Saudi Arabia", "Jordan", "Syria"],
   "Syria": ["Turkey", "Iraq", "Jordan", "Israel", "Lebanon"],
   "Lebanon": ["Syria", "Israel"],
-  "Israel": ["Lebanon", "Syria", "Jordan", "Egypt"],
+  "Israel": ["Lebanon", "Syria", "Jordan", "Egypt", "Palestine"],
+  "Palestine": ["Israel", "Jordan", "Egypt"],
   "Jordan": ["Syria", "Iraq", "Saudi Arabia", "Israel"],
   "Saudi Arabia": ["Jordan", "Iraq", "Kuwait", "Qatar", "United Arab Emirates", "Oman", "Yemen"],
   "Kuwait": ["Iraq", "Saudi Arabia"],
@@ -182,5 +183,37 @@ const RAW_BORDERS = {
 
   // ---- Oceania ----
   "Australia": [],
-  "New Zealand": []
+  "New Zealand": [],
+  "Fiji": [],
+  "Vanuatu": [],
+  "Solomon Islands": [],
+  "Samoa": [],
+  "Tonga": [],
+  "Kiribati": [],
+  "Marshall Islands": [],
+  "Micronesia": [],
+  "Palau": [],
+  "Nauru": [],
+  "Tuvalu": [],
+
+  // ---- Additional small nations (island/no land border, shown on the
+  // globe for visual completeness — not part of the guessable trail graph
+  // unless noted) ----
+  "Singapore": [],
+  "Bahrain": [],
+  "Comoros": [],
+  "Seychelles": [],
+  "Barbados": [],
+  "Saint Lucia": [],
+  "Saint Vincent and the Grenadines": [],
+  "Grenada": [],
+  "Saint Kitts and Nevis": [],
+  "Antigua and Barbuda": [],
+  "Dominica": [],
+  "Bahamas": [],
+  "Trinidad and Tobago": [],
+  "Jamaica": [],
+  "Cuba": [],
+  "Haiti": ["Dominican Republic"],
+  "Dominican Republic": ["Haiti"]
 };

@@ -69,17 +69,26 @@ window.Globe = (() => {
     "Peru": "604", "Bolivia": "068", "Paraguay": "600", "Chile": "152",
     "Argentina": "032", "Uruguay": "858",
 
-    "Australia": "036", "New Zealand": "554"
+    "Australia": "036", "New Zealand": "554",
+
+    "Palestine": "275", "Fiji": "242", "Vanuatu": "548", "Solomon Islands": "090",
+    "Bahamas": "044", "Trinidad and Tobago": "780", "Jamaica": "388", "Cuba": "192",
+    "Haiti": "332", "Dominican Republic": "214"
   };
 
   // Countries with no numeric id in this dataset, matched by name instead.
   const NAME_MATCH = { "Kosovo": "Kosovo" };
 
-  // Too small to appear in the 110m-resolution shape file at all — always
-  // rendered as a dot marker using coords.js, never as a filled shape.
+  // Too small to appear in the 110m-resolution shape file at all — skipped
+  // when matching against the main topology; real shapes for these come
+  // from the supplemental per-country fetch below instead.
   const NO_POLYGON = new Set([
     "Andorra", "Monaco", "San Marino", "Vatican City", "Liechtenstein",
     "Malta", "Maldives", "Mauritius",
+    "Singapore", "Bahrain", "Comoros", "Seychelles", "Samoa", "Tonga",
+    "Kiribati", "Marshall Islands", "Micronesia", "Palau", "Nauru", "Tuvalu",
+    "Barbados", "Saint Lucia", "Saint Vincent and the Grenadines", "Grenada",
+    "Saint Kitts and Nevis", "Antigua and Barbuda", "Dominica",
   ]);
 
   const COLORS = {
@@ -98,6 +107,7 @@ window.Globe = (() => {
   let ready = false;
   let lastState = { start: null, end: null, countryState: new Map(), hintedOutline: null };
   let onZoomChange = null;
+  let onDoubleTap = null;
   let pinchStartDist = null, pinchStartPct = 100;
 
   function dims() {
@@ -111,6 +121,12 @@ window.Globe = (() => {
   const MICRO_STATE_ISO3 = {
     "Andorra": "and", "Monaco": "mco", "San Marino": "smr", "Vatican City": "vat",
     "Liechtenstein": "lie", "Malta": "mlt", "Maldives": "mdv", "Mauritius": "mus",
+    "Singapore": "sgp", "Bahrain": "bhr", "Comoros": "com", "Seychelles": "syc",
+    "Samoa": "wsm", "Tonga": "ton", "Kiribati": "kir", "Marshall Islands": "mhl",
+    "Micronesia": "fsm", "Palau": "plw", "Nauru": "nru", "Tuvalu": "tuv",
+    "Barbados": "brb", "Saint Lucia": "lca", "Saint Vincent and the Grenadines": "vct",
+    "Grenada": "grd", "Saint Kitts and Nevis": "kna", "Antigua and Barbuda": "atg",
+    "Dominica": "dma",
   };
 
   async function loadMicroStates() {
@@ -160,7 +176,7 @@ window.Globe = (() => {
   function currentPercent() { return Math.round((currentScale / baseScale) * 100); }
 
   function setZoomPercent(pct) {
-    pct = Math.max(10, Math.min(1000, Math.round(pct)));
+    pct = Math.max(10, Math.min(2000, Math.round(pct)));
     currentScale = baseScale * (pct / 100);
     if (projection) projection.scale(currentScale);
     redraw();
@@ -190,8 +206,12 @@ window.Globe = (() => {
 
     let touchMode = null; // "rotate" | "pinch" | null
     let lastX = 0, lastY = 0;
+    let tapStartX = 0, tapStartY = 0, tapMoved = false, lastTapTime = 0;
 
-    function beginRotate(touch) { touchMode = "rotate"; lastX = touch.clientX; lastY = touch.clientY; }
+    function beginRotate(touch) {
+      touchMode = "rotate"; lastX = touch.clientX; lastY = touch.clientY;
+      tapStartX = touch.clientX; tapStartY = touch.clientY; tapMoved = false;
+    }
     function beginPinch(touches) { touchMode = "pinch"; pinchStartDist = touchDist(touches); pinchStartPct = currentPercent(); }
 
     mountEl.addEventListener("touchstart", (event) => {
@@ -208,8 +228,9 @@ window.Globe = (() => {
       }
       if (event.touches.length === 1) {
         if (touchMode !== "rotate") { beginRotate(event.touches[0]); return; }
-        event.preventDefault();
         const t = event.touches[0];
+        if (Math.abs(t.clientX - tapStartX) > 8 || Math.abs(t.clientY - tapStartY) > 8) tapMoved = true;
+        event.preventDefault();
         const dx = t.clientX - lastX, dy = t.clientY - lastY;
         lastX = t.clientX; lastY = t.clientY;
         const k = 220 / projection.scale();
@@ -221,9 +242,19 @@ window.Globe = (() => {
 
     mountEl.addEventListener("touchend", (event) => {
       if (event.touches.length === 1) beginRotate(event.touches[0]);
-      else if (event.touches.length === 0) touchMode = null;
+      else if (event.touches.length === 0) {
+        if (touchMode === "rotate" && !tapMoved && onDoubleTap) {
+          const now = Date.now();
+          if (now - lastTapTime < 320) { onDoubleTap(); lastTapTime = 0; }
+          else { lastTapTime = now; }
+        }
+        touchMode = null;
+      }
     });
     mountEl.addEventListener("touchcancel", () => { touchMode = null; pinchStartDist = null; });
+
+    // Desktop fallback — real double-click.
+    svg.node().addEventListener("dblclick", (event) => { event.preventDefault(); if (onDoubleTap) onDoubleTap(); });
   }
 
   function redraw() {
@@ -401,5 +432,6 @@ window.Globe = (() => {
     currentPercent,
     isReady: () => ready,
     onZoomChange: (fn) => { onZoomChange = fn; },
+    onDoubleTap: (fn) => { onDoubleTap = fn; },
   };
 })();

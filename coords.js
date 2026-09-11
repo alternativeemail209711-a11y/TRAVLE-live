@@ -65,5 +65,18 @@ const COUNTRY_COORDS = {
   "Paraguay": [-23.4, -58.4], "Chile": [-35.7, -71.5], "Argentina": [-38.4, -63.6],
   "Uruguay": [-32.5, -55.8],
 
-  "Australia": [-25.3, 133.8], "New Zealand": [-41.0, 174.0]
+  "Australia": [-25.3, 133.8], "New Zealand": [-41.0, 174.0],
+  "Fiji": [-17.7, 178.0], "Vanuatu": [-15.4, 166.9], "Solomon Islands": [-9.6, 160.2],
+  "Samoa": [-13.8, -172.1], "Tonga": [-21.2, -175.2], "Kiribati": [1.4, 173.0],
+  "Marshall Islands": [7.1, 171.2], "Micronesia": [6.9, 158.2], "Palau": [7.5, 134.6],
+  "Nauru": [-0.5, 166.9], "Tuvalu": [-7.5, 179.2],
+
+  "Palestine": [31.9, 35.2], "Singapore": [1.35, 103.8], "Bahrain": [26.0, 50.5],
+  "Comoros": [-11.9, 43.3], "Seychelles": [-4.6, 55.5], "Barbados": [13.2, -59.5],
+  "Saint Lucia": [13.9, -60.98], "Saint Vincent and the Grenadines": [13.25, -61.2],
+  "Grenada": [12.1, -61.7], "Saint Kitts and Nevis": [17.3, -62.7],
+  "Antigua and Barbuda": [17.1, -61.8], "Dominica": [15.4, -61.4],
+  "Bahamas": [24.25, -76.0], "Trinidad and Tobago": [10.7, -61.2],
+  "Jamaica": [18.1, -77.3], "Cuba": [21.5, -79.5], "Haiti": [18.9, -72.3],
+  "Dominican Republic": [18.7, -70.2]
 };

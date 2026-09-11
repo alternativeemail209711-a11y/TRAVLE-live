@@ -883,6 +883,7 @@
 
   if (window.Globe) {
     window.Globe.onZoomChange(syncZoomUI);
+    window.Globe.onDoubleTap(() => { if (globeWrap.classList.contains("expanded")) collapseGlobe(); else expandGlobe(); });
     window.Globe.init(globeMount).then(() => {
       startNewRound(); // (re)draws once the globe is ready, or falls back gracefully if not
     }).catch(() => { startNewRound(); });
