@@ -27,6 +27,7 @@
     <div class="topbar-actions">
       <span id="tiktokBadge" class="badge tiktok-badge" hidden>🎧</span>
       <span id="modeBadge" class="badge">LIVE</span>
+      <button id="topHintBtn" class="icon-btn" title="Hint: outline (free)" aria-label="Hint">💡</button>
       <button id="legendBtn" class="icon-btn" title="How to play &amp; legend" aria-label="How to play and legend">?</button>
       <button id="trophyBtn" class="icon-btn" title="Leaderboard" aria-label="Leaderboard">🏆</button>
       <button id="settingsBtn" class="icon-btn" title="Settings" aria-label="Settings">⚙</button>
@@ -46,6 +47,7 @@
       </div>
       <div class="globe-wrap" id="globeWrap">
         <div id="globeMount" class="globe-mount"></div>
+        <button id="globeExitBtn" class="globe-exit-btn" aria-label="Exit full screen" title="Exit full screen">✕</button>
       </div>
       <p class="globe-caption">Drag to rotate · pinch or use +/− to zoom · tap Enlarge for full screen</p>
     </section>
@@ -53,18 +55,19 @@
     <section class="route-card">
       <div class="route-meta">
         <div class="meta-pill">
-          <span class="meta-label">Guesses left</span>
+          <span class="meta-label">Guesses made</span>
           <span id="guessesLeft" class="meta-value">–</span>
         </div>
         <div class="meta-pill">
-          <span class="meta-label">Difficulty</span>
+          <span class="meta-label">Optimal length</span>
           <span id="difficultyLabel" class="meta-value">–</span>
         </div>
       </div>
 
       <div class="route" id="routeTrack"><!-- chain nodes injected by app.js --></div>
 
-      <p class="route-hint">Guess any country that could sit on the trail between the two ends. You can build inward from either side.</p>
+      <p class="route-hint">Guess any country that could sit on the trail between the two ends. You can build inward from either side. No guess limit — go for it.</p>
+      <p class="hint-display" id="hintDisplay"></p>
     </section>
 
     <section class="feed-card" id="feedCard">
@@ -80,17 +83,24 @@
   <!-- ============ HOST CONTROL DOCK ============ -->
   <footer class="host-dock">
     <p class="mode-banner" id="modeBanner"></p>
-    <div class="host-row" id="viewerRow">
-      <input id="viewerInput" class="host-input" type="text" placeholder="Viewer name (from chat)" autocomplete="off" />
-    </div>
-    <div class="host-row host-row-guess">
-      <input id="guessInput" class="host-input" type="text" placeholder="Type a country guess…" autocomplete="off" />
-      <button id="submitGuess" class="primary-btn">Guess</button>
-    </div>
-    <div class="host-row host-row-actions">
-      <button id="newRoundBtn" class="ghost-btn">New round</button>
-      <button id="hintOutlineBtn" class="ghost-btn">Hint: outline (−1 guess)</button>
-      <button id="revealBtn" class="ghost-btn">Reveal</button>
+    <button class="dock-toggle" id="dockToggle" aria-expanded="true">
+      <span>Host controls</span>
+      <span class="feed-chevron" id="dockChevron">▾</span>
+    </button>
+    <div class="dock-collapsible" id="dockCollapsible">
+      <div class="host-row" id="viewerRow">
+        <input id="viewerInput" class="host-input" type="text" placeholder="Viewer name (from chat)" autocomplete="off" />
+      </div>
+      <div class="host-row host-row-guess">
+        <input id="guessInput" class="host-input" type="text" placeholder="Type a country guess…" autocomplete="off" />
+        <button id="submitGuess" class="primary-btn">Guess</button>
+      </div>
+      <div class="host-row host-row-actions">
+        <button id="newRoundBtn" class="ghost-btn">New round</button>
+        <button id="hintOutlineBtn" class="ghost-btn">Hint: outline</button>
+        <button id="hintLettersBtn" class="ghost-btn">Hint: initials</button>
+        <button id="revealBtn" class="ghost-btn">Reveal</button>
+      </div>
     </div>
     <p id="hostMsg" class="host-msg" aria-live="polite"></p>
   </footer>
@@ -108,8 +118,13 @@
   </div>
 
   <div class="drawer-body">
+    <div class="status-card" id="statusCard">
+      <div class="status-row"><span class="status-dot" id="statusModeDot"></span><span id="statusModeText">Live</span></div>
+      <div class="status-row"><span class="status-dot" id="statusTiktokDot"></span><span id="statusTiktokText">Auto-chat: not connected</span></div>
+    </div>
+
     <h3 class="drawer-subhead">TikTok auto-chat</h3>
-    <p class="field-note">Optional — connects to your LIVE room and feeds real chat guesses straight into the game. Uses an unofficial method that can occasionally misbehave, so the manual boxes below always keep working as a backup.</p>
+    <p class="field-note">Optional — connects to your LIVE room and feeds real chat guesses straight into the game. Uses an unofficial method that can occasionally misbehave, so the manual boxes on the game screen always keep working as a backup.</p>
     <div class="field">
       <span class="field-label">Your TikTok username</span>
       <div class="range-row">
@@ -130,16 +145,6 @@
         <option value="live">Live — counts for chat leaderboard</option>
         <option value="test">Test — practice, scores not saved</option>
         <option value="offline">Offline — host plays solo</option>
-      </select>
-    </label>
-
-    <label class="field">
-      <span class="field-label">Difficulty</span>
-      <select id="difficultySelect" class="field-input">
-        <option value="easy">Easy — generous guesses</option>
-        <option value="medium" selected>Medium — balanced</option>
-        <option value="hard">Hard — tight guesses</option>
-        <option value="extreme">Extreme — optimal path only</option>
       </select>
     </label>
 
@@ -197,7 +202,7 @@
     <button class="icon-btn" id="closeLegend" aria-label="Close legend">✕</button>
   </div>
   <div class="drawer-body">
-    <p class="field-note">Two countries are picked — a start and a target. Chat calls out countries that could form a land-border chain between them. The host (you) types each guess in, with the guesser's name.</p>
+    <p class="field-note">Two countries are picked — a start and a target. Chat calls out countries that could form a land-border chain between them. There's no guess limit, so keep them coming.</p>
 
     <h3 class="drawer-subhead">Colors on the globe &amp; trail</h3>
     <ul class="legend-list">
@@ -214,8 +219,7 @@
       <li><b>3 points</b> — the guess sits on the shortest possible path</li>
       <li><b>1 point</b> — the guess is valid and connects, just not the optimal route</li>
       <li><b>0 points</b> — the guess doesn't connect to either end of the trail yet</li>
-      <li>Guesses run out based on difficulty — Easy gives the most room for mistakes, Extreme allows none.</li>
-      <li>The outline hint costs 1 guess, same as a wrong guess.</li>
+      <li>Both hints (outline shape, and initials) are free — use them as often as you like.</li>
     </ul>
   </div>
 </aside>

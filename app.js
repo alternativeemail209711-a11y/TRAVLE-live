@@ -180,8 +180,9 @@
   const modeBadge = $("modeBadge");
   const modeBanner = $("modeBanner");
   const guessesLeftEl = $("guessesLeft");
-  const difficultyLabelEl = $("difficultyLabel");
+  const optimalLenEl = $("difficultyLabel");
   const routeTrack = $("routeTrack");
+  const hintDisplay = $("hintDisplay");
   const feedList = $("feedList");
   const feedCard = $("feedCard");
   const feedToggle = $("feedToggle");
@@ -192,14 +193,19 @@
   const newRoundBtn = $("newRoundBtn");
   const revealBtn = $("revealBtn");
   const hintOutlineBtn = $("hintOutlineBtn");
+  const hintLettersBtn = $("hintLettersBtn");
+  const topHintBtn = $("topHintBtn");
   const hostMsg = $("hostMsg");
+
+  const dockToggle = $("dockToggle");
+  const dockCollapsible = $("dockCollapsible");
+  const dockChevron = $("dockChevron");
 
   const scrim = $("scrim");
   const settingsBtn = $("settingsBtn");
   const settingsDrawer = $("settingsDrawer");
   const closeSettings = $("closeSettings");
   const modeSelect = $("modeSelect");
-  const difficultySelect = $("difficultySelect");
   const minHopsInput = $("minHops");
   const maxHopsInput = $("maxHops");
   const autoContinueToggle = $("autoContinueToggle");
@@ -207,6 +213,11 @@
   const applySettingsBtn = $("applySettingsBtn");
   const resetTravleScores = $("resetTravleScores");
   const resetTotalScores = $("resetTotalScores");
+
+  const statusModeDot = $("statusModeDot");
+  const statusModeText = $("statusModeText");
+  const statusTiktokDot = $("statusTiktokDot");
+  const statusTiktokText = $("statusTiktokText");
 
   const trophyBtn = $("trophyBtn");
   const leaderboardDrawer = $("leaderboardDrawer");
@@ -234,6 +245,7 @@
   const globeZoomSlider = $("globeZoomSlider");
   const globeRecenter = $("globeRecenter");
   const globeExpandBtn = $("globeExpandBtn");
+  const globeExitBtn = $("globeExitBtn");
 
   const tiktokUsername = $("tiktokUsername");
   const tiktokConnectBtn = $("tiktokConnectBtn");
@@ -245,16 +257,11 @@
    * 4. GAME STATE
    * ------------------------------------------------------------------ */
 
-  const DIFFICULTY_ALLOWANCE = { easy: 6, medium: 3, hard: 1, extreme: 0 };
-  const DIFFICULTY_LABEL = { easy: "Easy", medium: "Medium", hard: "Hard", extreme: "Extreme" };
-
   let mode = "live";
-  let difficulty = "medium";
   let leaderboardTab = "travle";
   let autoTimer = null;
   let round = null;
-
-  function currentAllowance() { return DIFFICULTY_ALLOWANCE[difficulty]; }
+  let tiktokConnected = false;
 
   function isOptimal(country) {
     if (!round) return false;
@@ -279,13 +286,13 @@
       used: new Set([picked.start, picked.end]),
       guessesUsed: 0,
       requiredIntermediate,
-      maxGuesses: requiredIntermediate + currentAllowance(),
       active: true,
       wrongGuesses: [],
       distFromStart: bfsDistances(picked.start),
       distFromEnd: bfsDistances(picked.end),
       optimalTotal: picked.optimal,
       hintedOutline: null,
+      hintedLetters: false,
     };
     feedList.innerHTML = "";
     addFeed(`New trail: <span class="viewer">${picked.start}</span> → <span class="viewer">${picked.end}</span>`);
@@ -302,10 +309,24 @@
     return map;
   }
 
+  function maskCountryName(name) {
+    return name.split(" ").map((word) => {
+      return word.split("").map((ch, i) => (i === 0 || !/[a-zA-Z]/.test(ch)) ? ch : "_").join("");
+    }).join("  ");
+  }
+
+  function updateHintDisplay() {
+    if (!hintDisplay) return;
+    if (!round || !round.hintedOutline) { hintDisplay.textContent = ""; return; }
+    let txt = "Hint: shape shown on globe";
+    if (round.hintedLetters) txt += ` — ${maskCountryName(round.hintedOutline)}`;
+    hintDisplay.textContent = txt;
+  }
+
   function renderRound() {
     if (!round) return;
-    guessesLeftEl.textContent = Math.max(round.maxGuesses - round.guessesUsed, 0);
-    difficultyLabelEl.textContent = DIFFICULTY_LABEL[difficulty];
+    guessesLeftEl.textContent = String(round.guessesUsed);
+    optimalLenEl.textContent = String(round.requiredIntermediate);
 
     routeTrack.innerHTML = "";
     const fullVisual = [...round.startChain, "…GAP…", ...[...round.endChain].reverse()];
@@ -329,6 +350,7 @@
       }
     });
 
+    updateHintDisplay();
     renderGlobe();
   }
 
@@ -348,14 +370,16 @@
     if (!globeMount) return;
     let svgEl = globeMount.querySelector("svg.legacy-globe");
     if (!svgEl) {
-      globeMount.innerHTML = `<svg class="legacy-globe" viewBox="0 0 220 220">
+      const existing = globeMount.querySelectorAll("svg.legacy-globe");
+      existing.forEach((n) => n.remove());
+      globeMount.insertAdjacentHTML("afterbegin", `<svg class="legacy-globe" viewBox="0 0 220 220" style="width:100%;height:100%;">
         <defs><radialGradient id="legacyGrad" cx="35%" cy="30%" r="75%">
-          <stop offset="0%" stop-color="#274568"/><stop offset="100%" stop-color="#0b1526"/>
+          <stop offset="0%" stop-color="#5FB6E8"/><stop offset="100%" stop-color="#1E6FA8"/>
         </radialGradient></defs>
         <circle cx="110" cy="110" r="100" fill="url(#legacyGrad)"/>
-        <circle cx="110" cy="110" r="100" fill="none" stroke="#26385C" stroke-width="1.5"/>
+        <circle cx="110" cy="110" r="100" fill="none" stroke="#12314f" stroke-width="1.5"/>
         <g id="legacyLayer"></g>
-      </svg>`;
+      </svg>`);
       svgEl = globeMount.querySelector("svg.legacy-globe");
     }
     const layer = svgEl.querySelector("#legacyLayer");
@@ -371,7 +395,7 @@
     });
     const centerLon = Math.atan2(sy, sx) * 180 / Math.PI;
     const centerLat = Math.max(-55, Math.min(55, latSum / points.length));
-    const colorFor = (cat) => cat === "endpoint" ? "#D6A24A" : cat === "optimal" ? "#4C9A6C" : cat === "good" ? "#E08A2B" : "#D9534F";
+    const colorFor = (cat) => cat === "endpoint" ? "#D6A24A" : cat === "optimal" ? "#1B3A66" : cat === "good" ? "#E08A2B" : "#D9534F";
     points.forEach(([name, cat]) => {
       const [lat, lon] = COUNTRY_COORDS[name];
       const toRad = Math.PI / 180;
@@ -430,7 +454,7 @@
       return;
     }
 
-    if (round.hintedOutline === country) round.hintedOutline = null;
+    if (round.hintedOutline === country) { round.hintedOutline = null; round.hintedLetters = false; }
 
     const startFrontier = round.startChain[round.startChain.length - 1];
     const endFrontier = round.endChain[round.endChain.length - 1];
@@ -464,11 +488,10 @@
       addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="${tag}">${note}, connects from ${side} ${arrowFor(connectsStart ? "start" : "end")} (+${pts})</span>`);
       if (mode === "live") addPoints(viewerName, pts);
       renderRound();
-      checkOutOfGuesses();
       return;
     }
 
-    // wrong guess — give a proximity hint
+    // wrong guess — give a proximity hint (no round-ending consequence — guesses are unlimited)
     round.guessesUsed++;
     if (COUNTRY_COORDS[country]) {
       round.wrongGuesses.push(country);
@@ -484,40 +507,49 @@
     }
     addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="tag-bad">${hint} (+0)</span>`);
     renderRound();
-    checkOutOfGuesses();
   }
 
-  function useHintOutline() {
-    if (!round || !round.active) return;
-    if (round.maxGuesses - round.guessesUsed <= 0) {
-      hostMsg.textContent = "No guesses left to spend on a hint.";
-      return;
-    }
+  function pickHintCandidate(exclude) {
+    if (!round) return null;
     const startFrontier = round.startChain[round.startChain.length - 1];
     const endFrontier = round.endChain[round.endChain.length - 1];
-    const candidates = [...GRAPH.get(startFrontier), ...GRAPH.get(endFrontier)]
-      .filter((c) => !round.used.has(c) && c !== round.hintedOutline);
-    if (!candidates.length) {
-      hostMsg.textContent = "No hint available right now.";
-      return;
-    }
+    const candidates = [...new Set([...GRAPH.get(startFrontier), ...GRAPH.get(endFrontier)])]
+      .filter((c) => !round.used.has(c) && c !== exclude);
+    if (!candidates.length) return null;
     const optimalCandidates = candidates.filter((c) => isOptimal(c));
-    const pick = (optimalCandidates.length ? optimalCandidates : candidates)[0];
-    round.hintedOutline = pick;
-    round.guessesUsed++;
-    addFeed(`Outline hint revealed on the globe (−1 guess).`);
-    hostMsg.textContent = "";
-    renderRound();
-    checkOutOfGuesses();
+    const pool = optimalCandidates.length ? optimalCandidates : candidates;
+    return pool[(Math.random() * pool.length) | 0];
   }
 
-  function checkOutOfGuesses() {
-    if (round.guessesUsed >= round.maxGuesses) finishRound(false);
+  // Both hints are free — they cost nothing and never end the round.
+  function useHintOutline() {
+    if (!round || !round.active) return;
+    const next = pickHintCandidate(round.hintedOutline);
+    if (!next) { hostMsg.textContent = "No hint available right now."; return; }
+    round.hintedOutline = next;
+    round.hintedLetters = false;
+    addFeed(`Outline hint shown on the globe.`);
+    hostMsg.textContent = "";
+    renderRound();
+  }
+
+  function useHintLetters() {
+    if (!round || !round.active) return;
+    if (!round.hintedOutline) {
+      const next = pickHintCandidate(null);
+      if (!next) { hostMsg.textContent = "No hint available right now."; return; }
+      round.hintedOutline = next;
+    }
+    round.hintedLetters = true;
+    addFeed(`Initials hint: <b>${maskCountryName(round.hintedOutline)}</b>`);
+    hostMsg.textContent = "";
+    renderRound();
   }
 
   function finishRound(solved) {
     round.active = false;
     round.hintedOutline = null;
+    round.hintedLetters = false;
     const finalChain = [...round.startChain, ...[...round.endChain].reverse()];
     const canonicalOptimal = shortestPath(round.start, round.end) || [];
     const rows = Math.max(finalChain.length, canonicalOptimal.length);
@@ -553,7 +585,7 @@
       modalTitle.textContent = perfect ? "Solved — perfect trail!" : "Trail complete!";
       modalBody.textContent = `Connected in ${round.guessesUsed} guess${round.guessesUsed === 1 ? "" : "es"} (optimal was ${round.requiredIntermediate}).`;
     } else {
-      modalTitle.textContent = "Out of guesses";
+      modalTitle.textContent = "Round ended";
       modalBody.textContent = "Here's how your trail compares to an optimal one:";
     }
 
@@ -607,10 +639,27 @@
   }
 
   /* ------------------------------------------------------------------ *
-   * 6. GLOBE CONTROLS
+   * 6. GLOBE CONTROLS (including robust expand/collapse for mobile)
    * ------------------------------------------------------------------ */
 
   function syncZoomUI(pct) { globeZoomSlider.value = String(pct); }
+
+  function afterLayout(fn) { requestAnimationFrame(() => requestAnimationFrame(fn)); }
+
+  function expandGlobe() {
+    globeWrap.classList.add("expanded");
+    scrim.classList.add("visible");
+    globeExpandBtn.textContent = "Shrink";
+    if (window.Globe && window.Globe.isReady()) afterLayout(() => window.Globe.resize());
+  }
+
+  function collapseGlobe() {
+    if (!globeWrap.classList.contains("expanded")) return;
+    globeWrap.classList.remove("expanded");
+    scrim.classList.remove("visible");
+    globeExpandBtn.textContent = "Enlarge";
+    if (window.Globe && window.Globe.isReady()) afterLayout(() => window.Globe.resize());
+  }
 
   globeZoomIn.addEventListener("click", () => {
     if (window.Globe && window.Globe.isReady()) window.Globe.setZoomPercent(window.Globe.currentPercent() + 20);
@@ -625,19 +674,14 @@
     if (round && window.Globe && window.Globe.isReady()) { window.Globe.centerOn(round.start, round.end); syncZoomUI(window.Globe.currentPercent()); }
   });
   globeExpandBtn.addEventListener("click", () => {
-    const expanding = !globeWrap.classList.contains("expanded");
-    globeWrap.classList.toggle("expanded", expanding);
-    scrim.classList.toggle("visible", expanding);
-    globeExpandBtn.textContent = expanding ? "Shrink" : "Enlarge";
-    if (window.Globe && window.Globe.isReady()) setTimeout(() => window.Globe.resize(), 50);
+    if (globeWrap.classList.contains("expanded")) collapseGlobe(); else expandGlobe();
   });
-  scrim.addEventListener("click", () => {
-    if (globeWrap.classList.contains("expanded")) {
-      globeWrap.classList.remove("expanded");
-      globeExpandBtn.textContent = "Enlarge";
-      if (window.Globe && window.Globe.isReady()) setTimeout(() => window.Globe.resize(), 50);
-    }
-    closeAllDrawers();
+  globeExitBtn.addEventListener("click", collapseGlobe);
+  scrim.addEventListener("click", () => { collapseGlobe(); closeAllDrawers(); });
+
+  window.addEventListener("resize", () => { if (window.Globe && window.Globe.isReady()) window.Globe.resize(); });
+  window.addEventListener("orientationchange", () => {
+    setTimeout(() => { if (window.Globe && window.Globe.isReady()) window.Globe.resize(); }, 300);
   });
 
   /* ------------------------------------------------------------------ *
@@ -652,25 +696,38 @@
   if (socket) {
     socket.on("tiktok-status", (status) => {
       if (status.connecting) {
+        tiktokConnected = false;
         tiktokStatus.textContent = `Connecting to @${status.username}…`;
         tiktokStatus.className = "field-note tiktok-status";
+        statusTiktokText.textContent = `Auto-chat: connecting to @${status.username}…`;
+        statusTiktokDot.className = "status-dot dot-amber";
         return;
       }
       if (status.connected) {
+        tiktokConnected = true;
         tiktokStatus.textContent = `Connected to @${status.username} — chat guesses are live.`;
         tiktokStatus.className = "field-note tiktok-status ok";
         tiktokBadge.hidden = false;
+        statusTiktokText.textContent = `Auto-chat: connected to @${status.username}`;
+        statusTiktokDot.className = "status-dot dot-green";
       } else {
+        tiktokConnected = false;
         tiktokBadge.hidden = true;
         if (status.error) {
           tiktokStatus.textContent = `Couldn't connect: ${status.error}`;
           tiktokStatus.className = "field-note tiktok-status err";
+          statusTiktokText.textContent = "Auto-chat: connection failed";
+          statusTiktokDot.className = "status-dot dot-red";
         } else if (status.reason) {
           tiktokStatus.textContent = `Disconnected — ${status.reason}`;
           tiktokStatus.className = "field-note tiktok-status err";
+          statusTiktokText.textContent = "Auto-chat: disconnected";
+          statusTiktokDot.className = "status-dot dot-red";
         } else {
           tiktokStatus.textContent = "Not connected — guesses must be typed manually.";
           tiktokStatus.className = "field-note tiktok-status";
+          statusTiktokText.textContent = "Auto-chat: not connected";
+          statusTiktokDot.className = "status-dot dot-slate";
         }
       }
     });
@@ -693,6 +750,8 @@
     tiktokConnectBtn.disabled = true;
     tiktokDisconnectBtn.disabled = true;
     tiktokStatus.textContent = "Auto-chat isn't available on this deployment.";
+    statusTiktokText.textContent = "Auto-chat: unavailable on this deployment";
+    statusTiktokDot.className = "status-dot dot-red";
   }
 
   /* ------------------------------------------------------------------ *
@@ -705,6 +764,8 @@
   newRoundBtn.addEventListener("click", startNewRound);
   revealBtn.addEventListener("click", revealRound);
   hintOutlineBtn.addEventListener("click", useHintOutline);
+  hintLettersBtn.addEventListener("click", useHintLetters);
+  topHintBtn.addEventListener("click", useHintOutline);
   modalNextBtn.addEventListener("click", startNewRound);
 
   feedToggle.addEventListener("click", () => {
@@ -712,7 +773,24 @@
     feedToggle.setAttribute("aria-expanded", String(!feedCard.classList.contains("collapsed")));
   });
 
-  settingsBtn.addEventListener("click", () => openDrawer(settingsDrawer));
+  dockToggle.addEventListener("click", () => {
+    dockCollapsible.classList.toggle("collapsed");
+    const expanded = !dockCollapsible.classList.contains("collapsed");
+    dockToggle.setAttribute("aria-expanded", String(expanded));
+    dockChevron.textContent = expanded ? "▾" : "▸";
+  });
+
+  function updateStatusCard() {
+    const label = mode.charAt(0).toUpperCase() + mode.slice(1);
+    statusModeText.textContent = mode === "live"
+      ? "Mode: Live — scoring is active"
+      : mode === "test"
+      ? "Mode: Test — scores won't be saved"
+      : "Mode: Offline — solo practice";
+    statusModeDot.className = "status-dot " + (mode === "live" ? "dot-green" : mode === "test" ? "dot-amber" : "dot-slate");
+  }
+
+  settingsBtn.addEventListener("click", () => { updateStatusCard(); openDrawer(settingsDrawer); });
   closeSettings.addEventListener("click", () => closeDrawer(settingsDrawer));
   trophyBtn.addEventListener("click", () => { renderLeaderboard(); openDrawer(leaderboardDrawer); });
   closeLeaderboard.addEventListener("click", () => closeDrawer(leaderboardDrawer));
@@ -728,15 +806,16 @@
   function applyModeUI() {
     modeBadge.textContent = mode.toUpperCase();
     modeBadge.className = "badge" + (mode === "test" ? " mode-test" : mode === "offline" ? " mode-offline" : "");
-    viewerRow.style.display = mode === "offline" ? "none" : "flex";
+    // Viewer-name box only matters in Test (rehearsing attribution) — Live
+    // relies on auto-chat or a plain "Host" fallback, Offline has no viewers.
+    viewerRow.style.display = mode === "test" ? "flex" : "none";
     appEl.className = "mode-" + mode;
     const text = MODE_BANNER_TEXT[mode];
     modeBanner.textContent = text;
     modeBanner.classList.toggle("show", Boolean(text));
+    updateStatusCard();
   }
 
-  // Settings only take effect when "Apply" is tapped — so a host can line
-  // everything up (mode, difficulty, trail length) before committing.
   minHopsInput.addEventListener("change", () => {
     if (parseInt(minHopsInput.value, 10) > parseInt(maxHopsInput.value, 10)) maxHopsInput.value = minHopsInput.value;
   });
@@ -746,7 +825,6 @@
 
   applySettingsBtn.addEventListener("click", () => {
     mode = modeSelect.value;
-    difficulty = difficultySelect.value;
     applyModeUI();
     closeDrawer(settingsDrawer);
     startNewRound();
@@ -769,10 +847,6 @@
     });
   });
 
-  window.addEventListener("resize", () => {
-    if (window.Globe && window.Globe.isReady()) window.Globe.resize();
-  });
-
   /* ------------------------------------------------------------------ *
    * 9. INIT
    * ------------------------------------------------------------------ */
@@ -781,7 +855,7 @@
 
   if (window.Globe) {
     window.Globe.onZoomChange(syncZoomUI);
-    window.Globe.init(globeMount).then((ok) => {
+    window.Globe.init(globeMount).then(() => {
       startNewRound(); // (re)draws once the globe is ready, or falls back gracefully if not
     }).catch(() => { startNewRound(); });
   } else {

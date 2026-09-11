@@ -84,10 +84,10 @@ window.Globe = (() => {
 
   const COLORS = {
     endpoint: "#D6A24A",
-    optimal: "#4C9A6C",
+    optimal: "#1B3A66",
     good: "#E08A2B",
     wrong: "#D9534F",
-    neutral: "#1C2C4A",
+    neutral: "#8FC1E8",
   };
 
   let mountEl = null;
@@ -147,12 +147,18 @@ window.Globe = (() => {
   }
 
   function setupInteraction() {
-    const drag = d3.drag().on("drag", (event) => {
-      const k = 75 / projection.scale();
-      rotate = [rotate[0] + event.dx * k, clampLat(rotate[1] - event.dy * k), 0];
-      projection.rotate(rotate);
-      redraw();
-    });
+    // Mouse: d3.drag handles rotation. Touch is handled entirely below with
+    // our own state machine — combining d3.drag's touch support with a
+    // separate pinch listener caused the two to fight each other on phones,
+    // which is what made drag/pinch feel broken.
+    const drag = d3.drag()
+      .filter((event) => event.type === "mousedown")
+      .on("drag", (event) => {
+        const k = 75 / projection.scale();
+        rotate = [rotate[0] + event.dx * k, clampLat(rotate[1] - event.dy * k), 0];
+        projection.rotate(rotate);
+        redraw();
+      });
     svg.call(drag);
 
     svg.node().addEventListener("wheel", (event) => {
@@ -160,23 +166,42 @@ window.Globe = (() => {
       setZoomPercent(currentPercent() + (event.deltaY < 0 ? 8 : -8));
     }, { passive: false });
 
+    let touchMode = null; // "rotate" | "pinch" | null
+    let lastX = 0, lastY = 0;
+
+    function beginRotate(touch) { touchMode = "rotate"; lastX = touch.clientX; lastY = touch.clientY; }
+    function beginPinch(touches) { touchMode = "pinch"; pinchStartDist = touchDist(touches); pinchStartPct = currentPercent(); }
+
     mountEl.addEventListener("touchstart", (event) => {
-      if (event.touches.length === 2) {
-        pinchStartDist = touchDist(event.touches);
-        pinchStartPct = currentPercent();
-      }
+      if (event.touches.length === 1) beginRotate(event.touches[0]);
+      else if (event.touches.length === 2) beginPinch(event.touches);
     }, { passive: true });
 
     mountEl.addEventListener("touchmove", (event) => {
-      if (event.touches.length === 2 && pinchStartDist) {
+      if (event.touches.length === 2) {
+        if (touchMode !== "pinch") beginPinch(event.touches);
         event.preventDefault();
         setZoomPercent(pinchStartPct * (touchDist(event.touches) / pinchStartDist));
+        return;
+      }
+      if (event.touches.length === 1) {
+        if (touchMode !== "rotate") { beginRotate(event.touches[0]); return; }
+        event.preventDefault();
+        const t = event.touches[0];
+        const dx = t.clientX - lastX, dy = t.clientY - lastY;
+        lastX = t.clientX; lastY = t.clientY;
+        const k = 220 / projection.scale();
+        rotate = [rotate[0] + dx * k, clampLat(rotate[1] - dy * k), 0];
+        projection.rotate(rotate);
+        redraw();
       }
     }, { passive: false });
 
     mountEl.addEventListener("touchend", (event) => {
-      if (event.touches.length < 2) pinchStartDist = null;
+      if (event.touches.length === 1) beginRotate(event.touches[0]);
+      else if (event.touches.length === 0) touchMode = null;
     });
+    mountEl.addEventListener("touchcancel", () => { touchMode = null; pinchStartDist = null; });
   }
 
   function redraw() {
@@ -196,8 +221,8 @@ window.Globe = (() => {
     if (!countriesLayer) return;
     countriesLayer.selectAll("path.country")
       .attr("fill", (d) => colorFor(d[0], state))
-      .attr("stroke", (d) => d[0] === state.hintedOutline ? "#F3EBD9" : "#0B1526")
-      .attr("stroke-width", (d) => d[0] === state.hintedOutline ? 1.8 : (state.countryState.get(d[0]) ? 1 : 0.5))
+      .attr("stroke", (d) => d[0] === state.hintedOutline ? "#D6A24A" : "#12314f")
+      .attr("stroke-width", (d) => d[0] === state.hintedOutline ? 2 : (state.countryState.get(d[0]) ? 1 : 0.5))
       .attr("stroke-dasharray", (d) => d[0] === state.hintedOutline ? "3,2" : null);
   }
 
@@ -224,7 +249,7 @@ window.Globe = (() => {
           (name === lastState.start || name === lastState.end ? "endpoint" : "neutral");
         return COLORS[cat] || COLORS.neutral;
       })
-      .attr("stroke", (name) => name === lastState.hintedOutline ? "#F3EBD9" : "#0B1526")
+      .attr("stroke", (name) => name === lastState.hintedOutline ? "#D6A24A" : "#12314f")
       .attr("stroke-dasharray", (name) => name === lastState.hintedOutline ? "2,1.5" : null)
       .each(function (name) {
         const c = COUNTRY_COORDS && COUNTRY_COORDS[name];
@@ -254,8 +279,8 @@ window.Globe = (() => {
 
       const defs = svg.append("defs");
       const grad = defs.append("radialGradient").attr("id", "globeGrad").attr("cx", "35%").attr("cy", "30%").attr("r", "75%");
-      grad.append("stop").attr("offset", "0%").attr("stop-color", "#274568");
-      grad.append("stop").attr("offset", "100%").attr("stop-color", "#0b1526");
+      grad.append("stop").attr("offset", "0%").attr("stop-color", "#5FB6E8");
+      grad.append("stop").attr("offset", "100%").attr("stop-color", "#1E6FA8");
 
       projection = d3.geoOrthographic().scale(baseScale).translate([width / 2, height / 2]).rotate(rotate).clipAngle(90);
       pathGen = d3.geoPath(projection);
@@ -266,7 +291,7 @@ window.Globe = (() => {
 
       graticuleEl = g.append("path").attr("class", "globe-graticule")
         .datum(d3.geoGraticule10()).attr("d", pathGen)
-        .attr("fill", "none").attr("stroke", "#3a5580").attr("stroke-width", 0.6).attr("opacity", 0.35);
+        .attr("fill", "none").attr("stroke", "#EAF6FD").attr("stroke-width", 0.6).attr("opacity", 0.3);
 
       countriesLayer = g.append("g").attr("class", "globe-countries");
       markersLayer = g.append("g").attr("class", "globe-markers");
@@ -283,7 +308,7 @@ window.Globe = (() => {
         .join("path")
         .attr("class", "country")
         .attr("fill", COLORS.neutral)
-        .attr("stroke", "#0B1526")
+        .attr("stroke", "#12314f")
         .attr("stroke-width", 0.5)
         .attr("d", (d) => pathGen(d[1]));
 
