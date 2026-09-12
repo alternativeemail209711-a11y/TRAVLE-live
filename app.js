@@ -289,6 +289,7 @@
       requiredIntermediate,
       active: true,
       wrongGuesses: [],
+      floatingOptimal: new Set(),
       distFromStart: bfsDistances(picked.start),
       distFromEnd: bfsDistances(picked.end),
       optimalTotal: picked.optimal,
@@ -306,6 +307,7 @@
     const map = new Map();
     round.startChain.forEach((c) => { map.set(c, c === round.start ? "endpoint" : (isOptimal(c) ? "optimal" : "good")); });
     round.endChain.forEach((c) => { map.set(c, c === round.end ? "endpoint" : (isOptimal(c) ? "optimal" : "good")); });
+    round.floatingOptimal.forEach((c) => { if (!map.has(c)) map.set(c, "optimal"); });
     round.wrongGuesses.forEach((c) => { if (!map.has(c)) map.set(c, "wrong"); });
     return map;
   }
@@ -396,7 +398,7 @@
     });
     const centerLon = Math.atan2(sy, sx) * 180 / Math.PI;
     const centerLat = Math.max(-55, Math.min(55, latSum / points.length));
-    const colorFor = (cat) => cat === "endpoint" ? "#D6A24A" : cat === "optimal" ? "#1B3A66" : cat === "good" ? "#E08A2B" : "#D9534F";
+    const colorFor = (cat) => cat === "endpoint" ? "#A855F7" : cat === "optimal" ? "#22C55E" : cat === "good" ? "#FFD43B" : "#EF4444";
     points.forEach(([name, cat]) => {
       const [lat, lon] = COUNTRY_COORDS[name];
       const toRad = Math.PI / 180;
@@ -437,6 +439,28 @@
     processGuess(rawGuess, viewerName, { silent: false });
   }
 
+  // After the connected chain grows, check whether its new frontier is now
+  // adjacent to any previously-accepted "floating" optimal guess — if so,
+  // splice it straight into the chain (no fresh guess needed, it was
+  // already claimed) and keep checking, since one splice can expose the
+  // next one. Returns true if the trail is now fully connected.
+  function trySpliceFloating() {
+    let progress = true;
+    while (progress) {
+      progress = false;
+      const sf = round.startChain[round.startChain.length - 1];
+      const ef = round.endChain[round.endChain.length - 1];
+      if (GRAPH.get(sf).has(ef)) return true;
+      for (const cand of round.floatingOptimal) {
+        if (GRAPH.get(sf).has(cand)) { round.startChain.push(cand); round.floatingOptimal.delete(cand); progress = true; break; }
+        if (GRAPH.get(ef).has(cand)) { round.endChain.push(cand); round.floatingOptimal.delete(cand); progress = true; break; }
+      }
+    }
+    const sf = round.startChain[round.startChain.length - 1];
+    const ef = round.endChain[round.endChain.length - 1];
+    return GRAPH.get(sf).has(ef);
+  }
+
   // Shared by the manual "Guess" button and the TikTok auto-relay.
   function processGuess(rawGuess, viewerNameRaw, opts) {
     const silent = Boolean(opts && opts.silent);
@@ -461,6 +485,7 @@
     const endFrontier = round.endChain[round.endChain.length - 1];
     const connectsStart = GRAPH.get(startFrontier).has(country);
     const connectsEnd = GRAPH.get(endFrontier).has(country);
+    const optimal = isOptimal(country);
 
     hostMsg.textContent = "";
 
@@ -468,9 +493,9 @@
       round.startChain.push(country);
       round.used.add(country);
       round.guessesUsed++;
-      const optimal = isOptimal(country);
       const pts = optimal ? 3 : 1;
-      addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="tag-win">bridged the trail! 🎉 (+${pts})</span>`);
+      const tag = optimal ? "tag-optimal" : "tag-good";
+      addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="${tag}">bridged the trail! 🎉 (+${pts})</span>`);
       if (mode === "live") addPoints(viewerName, pts);
       renderRound();
       finishRound(true);
@@ -481,13 +506,27 @@
       if (connectsStart) { round.startChain.push(country); } else { round.endChain.push(country); }
       round.used.add(country);
       round.guessesUsed++;
-      const optimal = isOptimal(country);
       const pts = optimal ? 3 : 1;
       const side = connectsStart ? round.start : round.end;
-      const tag = optimal ? "tag-win" : "tag-good";
-      const note = optimal ? "optimal move" : "valid, but not the shortest route";
+      const tag = optimal ? "tag-optimal" : "tag-good";
+      const note = optimal ? "on the optimal path" : "valid, but not the shortest route";
       addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="${tag}">${note}, connects from ${side} ${arrowFor(connectsStart ? "start" : "end")} (+${pts})</span>`);
       if (mode === "live") addPoints(viewerName, pts);
+      const connected = trySpliceFloating();
+      renderRound();
+      if (connected) finishRound(true);
+      return;
+    }
+
+    if (optimal) {
+      // On the shortest path, but chat hasn't reached it from either side
+      // yet — still counts, colors green immediately, and gets absorbed
+      // into the visible trail automatically once the chain grows to it.
+      round.floatingOptimal.add(country);
+      round.used.add(country);
+      round.guessesUsed++;
+      addFeed(`<span class="viewer">${viewerLabel(viewerName)}</span> guessed <b>${country}</b> — <span class="tag-optimal">on the optimal path! (+3) — not connected to the trail yet</span>`);
+      if (mode === "live") addPoints(viewerName, 3);
       renderRound();
       return;
     }
@@ -579,6 +618,22 @@
       row.appendChild(left);
       row.appendChild(right);
       modalPath.appendChild(row);
+    }
+
+    if (round.floatingOptimal.size) {
+      round.floatingOptimal.forEach((c) => {
+        const row = document.createElement("div");
+        row.className = "modal-path-row";
+        const left = document.createElement("span");
+        left.className = "path-chip chip-optimal";
+        left.textContent = c + " (not yet connected)";
+        const right = document.createElement("span");
+        right.className = "path-chip chip-reference";
+        right.textContent = "—";
+        row.appendChild(left);
+        row.appendChild(right);
+        modalPath.appendChild(row);
+      });
     }
 
     if (solved) {

@@ -92,10 +92,10 @@ window.Globe = (() => {
   ]);
 
   const COLORS = {
-    endpoint: "#D6A24A",
-    optimal: "#1B3A66",
-    good: "#E08A2B",
-    wrong: "#D9534F",
+    endpoint: "#A855F7",
+    optimal: "#22C55E",
+    good: "#FFD43B",
+    wrong: "#EF4444",
     neutral: "#8FC1E8",
   };
 

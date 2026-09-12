@@ -159,23 +159,29 @@ connection method itself, not tied to a specific TikTok account.
   countries build the trail inward from either end — a chain can grow from
   both sides until they connect. Guesses are unlimited — a round only ends
   when the trail connects, or when you tap **Reveal**.
-- **Scoring:** 3 points for a guess that sits on the *shortest possible*
-  path between the two ends; 1 point for a guess that's valid and connects,
-  just not the shortest route; 0 for a guess that doesn't connect yet
-  (you'll get a hint like "3 borders away from Germany" instead).
+- **Scoring:** 3 points for a guess that's on the *shortest possible* path
+  between the two ends — this counts the moment it's guessed, even if it
+  hasn't connected to the growing trail yet (it'll get absorbed
+  automatically once the trail reaches it); 1 point for a guess that's
+  valid and connects, just not the shortest route; 0 for a guess that's
+  neither (you'll get a hint like "3 borders away from Germany" instead).
 - **Hints are free**, no penalty either way:
   - **Outline hint** (💡, top bar) reveals the *shape* of one valid next
     country on the globe, no name shown. Tap again for a different one.
   - **Initials hint** reveals each word's first letter for that same
     mystery country (e.g. "S _ _ _ _  A _ _ _ _ _").
-- The **globe** shows real country shapes on an ocean-blue sphere: gold for
-  the two end countries, navy blue for guesses on the optimal path, orange
-  for valid-but-longer guesses, red-outlined for wrong tries, and pale blue
-  for everywhere else. Drag to rotate it in any direction; pinch, scroll,
-  or use the +/− controls to zoom from 10% to 500%; tap **Enlarge** to fill
-  the screen, and the **✕** in the corner (or tap the dimmed background) to
-  come back. Tap **Recenter** any time to snap back to a view showing both
-  countries.
+- The **globe** covers most of the screen and shows real country shapes on
+  an ocean-blue sphere: bright violet for the two end countries, green for
+  guesses on the optimal path, yellow for valid-but-longer guesses,
+  red-outlined for wrong tries, and pale blue for everywhere else —
+  including Palestine (a real playable country with its actual borders)
+  and dozens of small island nations shown for completeness. Drag to
+  rotate it in any direction; pinch, scroll, or use the +/− controls to
+  zoom from 10% to 2000% (enough to make out tiny countries clearly);
+  double-tap the globe or tap **Enlarge** to fill the screen, and the
+  **✕** in the corner (or tap the dimmed background, or double-tap again)
+  to come back. Tap **Recenter** any time to snap back to a view showing
+  both countries.
 - **Host controls** (guess box, New round, hints, Reveal) collapse under a
   "Host controls" tab so the game and globe can take up the full screen —
   tap it to expand or collapse.

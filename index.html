@@ -208,18 +208,18 @@
     <h3 class="drawer-subhead">Colors on the globe &amp; trail</h3>
     <ul class="legend-list">
       <li><span class="swatch swatch-endpoint"></span> Start &amp; target country</li>
-      <li><span class="swatch swatch-optimal"></span> Accepted guess — on the shortest possible path</li>
-      <li><span class="swatch swatch-good"></span> Accepted guess — valid, but a longer route</li>
-      <li><span class="swatch swatch-wrong"></span> Guessed, but not connected to the trail</li>
+      <li><span class="swatch swatch-optimal"></span> On the shortest possible path — counts even before it connects to the trail</li>
+      <li><span class="swatch swatch-good"></span> Accepted guess — valid and connects, but a longer route</li>
+      <li><span class="swatch swatch-wrong"></span> Not on the shortest path and not connected to the trail</li>
       <li><span class="swatch swatch-hint"></span> Outline hint — a valid next country, shape only</li>
       <li><span class="swatch swatch-neutral"></span> Not yet guessed</li>
     </ul>
 
     <h3 class="drawer-subhead">Scoring</h3>
     <ul class="legend-list">
-      <li><b>3 points</b> — the guess sits on the shortest possible path</li>
+      <li><b>3 points</b> — the guess is on the shortest possible path, whether or not it's connected to the trail yet</li>
       <li><b>1 point</b> — the guess is valid and connects, just not the optimal route</li>
-      <li><b>0 points</b> — the guess doesn't connect to either end of the trail yet</li>
+      <li><b>0 points</b> — the guess is neither on the optimal path nor connected yet</li>
       <li>Both hints (outline shape, and initials) are free — use them as often as you like.</li>
     </ul>
   </div>
