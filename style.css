@@ -72,6 +72,40 @@ button, input, select {
   overflow: hidden;
 }
 
+/* ---------------- Leaderboard ticker ---------------- */
+.ticker-bar {
+  flex: 0 0 auto;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 5px 0;
+}
+.ticker-track {
+  display: inline-flex;
+  width: max-content;
+  animation: ticker-scroll 26s linear infinite;
+}
+.ticker-bar:hover .ticker-track,
+.ticker-bar:active .ticker-track { animation-play-state: paused; }
+.ticker-item {
+  padding: 0 16px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--paper);
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+  border-right: 1px solid var(--line);
+}
+.ticker-item .ticker-name { margin-left: 2px; }
+.ticker-medal-1 { color: #FFD700; }
+.ticker-medal-2 { color: #D8DEE6; }
+.ticker-medal-3 { color: #E5934A; }
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
 /* ---------------- Top bar ---------------- */
 .topbar {
   display: flex;

@@ -162,12 +162,14 @@
     store.total[name] = (store.total[name] || 0) + points;
     saveStore();
     if (leaderboardDrawer.classList.contains("open")) renderLeaderboard();
+    renderTicker();
   }
 
   function resetBucket(bucket) {
     store[bucket] = {};
     saveStore();
     renderLeaderboard();
+    renderTicker();
   }
 
   /* ------------------------------------------------------------------ *
@@ -223,6 +225,8 @@
   const leaderboardDrawer = $("leaderboardDrawer");
   const closeLeaderboard = $("closeLeaderboard");
   const leaderboardList = $("leaderboardList");
+  const tickerBar = $("tickerBar");
+  const tickerTrack = $("tickerTrack");
   const tabTravle = $("tabTravle");
   const tabTotal = $("tabTotal");
 
@@ -694,6 +698,23 @@
     });
   }
 
+  const MEDALS = ["🥇", "🥈", "🥉"];
+  const MEDAL_CLASS = ["ticker-medal-1", "ticker-medal-2", "ticker-medal-3"];
+
+  function renderTicker() {
+    if (!tickerBar) return;
+    const entries = Object.entries(store.travle).sort((a, b) => b[1] - a[1]).slice(0, 10);
+    if (!entries.length) { tickerBar.hidden = true; tickerTrack.innerHTML = ""; return; }
+    tickerBar.hidden = false;
+    const itemsHtml = entries.map(([name, score], i) => {
+      const medal = MEDALS[i] || `#${i + 1}`;
+      const cls = MEDAL_CLASS[i] || "";
+      return `<span class="ticker-item ${cls}">${medal}<span class="ticker-name">${name}</span> — ${score}</span>`;
+    }).join("");
+    // duplicated once so the CSS animation (translateX -50%) loops seamlessly
+    tickerTrack.innerHTML = itemsHtml + itemsHtml;
+  }
+
   /* ------------------------------------------------------------------ *
    * 6. GLOBE CONTROLS (including robust expand/collapse for mobile)
    * ------------------------------------------------------------------ */
@@ -935,6 +956,7 @@
    * ------------------------------------------------------------------ */
 
   applyModeUI();
+  renderTicker();
 
   if (window.Globe) {
     window.Globe.onZoomChange(syncZoomUI);

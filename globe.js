@@ -323,7 +323,7 @@ window.Globe = (() => {
     try {
       const { w, h } = dims();
       width = w; height = h;
-      baseScale = Math.min(width, height) / 2.15;
+      baseScale = Math.min(width, height) / 2 - 1;
       currentScale = baseScale;
 
       svg = d3.select(mountEl).append("svg")
@@ -415,7 +415,7 @@ window.Globe = (() => {
     const pct = currentPercent();
     const { w, h } = dims();
     width = w; height = h;
-    baseScale = Math.min(width, height) / 2.15;
+    baseScale = Math.min(width, height) / 2 - 1;
     currentScale = baseScale * (pct / 100);
     projection.translate([width / 2, height / 2]).scale(currentScale);
     svg.attr("viewBox", `0 0 ${width} ${height}`);
